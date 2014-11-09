@@ -38,7 +38,6 @@
 
 #include <QtCore/QString>
 
-#ifdef QT_GL
 /**
  * @ingroup qtWindow
  * @brief Main application with the QT_WidgetMain double thread class (X-Forms Thread)
@@ -53,7 +52,7 @@ class Main_threads: public QObject
   
 public:
   Main_threads();
-  ~Main_threads();
+  virtual ~Main_threads();
   
   int run(int argc, char** argv);
   
@@ -83,15 +82,13 @@ class Simple_threads : public QObject
 	
 public:
 	Simple_threads();
-	~Simple_threads();
+    virtual ~Simple_threads();
 	
   int run(int argc, char** argv);
 
 	
 	private slots :
 };
-
-#endif
 
 #endif // MAIN_HPP
 

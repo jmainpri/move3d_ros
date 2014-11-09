@@ -182,7 +182,17 @@ set(INCLUDE_DIRS ${INCLUDE_DIRS} /opt/local/include/ ${BOOST_INCLUDE_DIRS})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-#-------------- Qt Library ----------------------------------------------------
+#-------------- LibXml2 --------------------------------------------------------
+
+find_package(LibXml2 REQUIRED)
+include_directories(${LIBXML2_INCLUDE_DIR})
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${LIBXML2_INCLUDE_DIR})
+SET(LIBS ${LIBS} ${LIBXML2_LIBRARIES})
+
+# ------------------------------------------------------------------------------
+#-------------- Qt Library -----------------------------------------------------
+# ------------------------------------------------------------------------------
+
 IF(QT_LIBRARY)
   # This also fails if qt4 is installed, but system is configured for qt3 qmake
   FIND_PACKAGE(Qt4 REQUIRED)
@@ -194,14 +204,12 @@ IF(QT_LIBRARY)
   INCLUDE(${QT_USE_FILE})
   SET(LIBS ${LIBS} ${QT_LIBRARIES})
 ENDIF(QT_LIBRARY)
-FIND_PACKAGE(X11 REQUIRED)
-INCLUDE_directories(${X11_INCLUDE_DIR})
+
+find_package(X11 REQUIRED)
+include_directories(${X11_INCLUDE_DIR})
 SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${X11_INCLUDE_DIR})
 SET(LIBS ${LIBS} ${X11_LIBRARIES})
-FIND_PACKAGE(LibXml2 REQUIRED)
-INCLUDE_directories(${LIBXML2_INCLUDE_DIR})
-SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${LIBXML2_INCLUDE_DIR})
-SET(LIBS ${LIBS} ${LIBXML2_LIBRARIES})
+
 IF(APPLE)
         IF(QT_LIBRARY)
                 FIND_PACKAGE(OpenGL REQUIRED)
@@ -222,15 +230,30 @@ IF(APPLE)
                 ENDIF(WITH_XFORMS)
         ENDIF(QT_LIBRARY)
 ELSE(APPLE)
-  FIND_PACKAGE(OpenGL REQUIRED)
-  INCLUDE_directories(${OPENGL_INCLUDE_DIR})
+  find_package(OpenGL REQUIRED)
+  include_directories(${OPENGL_INCLUDE_DIR})
   SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR})
   SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
 ENDIF(APPLE)
 
-find_package (PkgConfig REQUIRED)
+IF(QT_LIBRARY)
 
+  # generate the UI headers
+  QT4_WRAP_UI(Move3DGUI_QT_UI_HEADERS include/move3d_ros_gui.ui)
+
+  message(${Move3DGUI_QT_UI_HEADERS})
+
+  # Qt4 files that need to be preprocessed
+  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp include/move3d_ros_gui.hpp)
+
+
+ENDIF(QT_LIBRARY)
+
+# ----------------------------------------------------------------------------
 # ------------------- libmove3d ----------------------------------------------
+# ----------------------------------------------------------------------------
+
+find_package (PkgConfig REQUIRED)
 
 pkg_check_modules(MOVE3D REQUIRED libmove3d)
 include_directories(${MOVE3D_INCLUDE_DIRS})
@@ -256,7 +279,6 @@ ENDIF(UNIX)
 
 #MESSAGE( MOVE3D_LIBRARIES = ${MOVE3D_LIBRARIES})
 
-#-------------- Move3D-motionPlanner-libs --------------------------------------
 
 pkg_check_modules(MOVE3D-PLANNERS REQUIRED libmove3d-planners)
 include_directories(${MOVE3D-PLANNERS_INCLUDE_DIRS})
@@ -266,7 +288,6 @@ ADD_DEFINITIONS(${MOVE3D-PLANNERS_CFLAGS})
 
 message("MOVE3D-PLANNERS_INCLUDE_DIRS : ${MOVE3D-PLANNERS_INCLUDE_DIRS}")
 message("MOVE3D-PLANNERS_LIBRARIES : ${MOVE3D-PLANNERS_LIBRARIES}")
-#-------------- Move3D-Qt-Gui-libs --------------------------------------
 
 pkg_check_modules(MOVE3D-QTGUI REQUIRED move3d-qt-gui-libs)
 INCLUDE_directories(${MOVE3D-QTGUI_INCLUDE_DIRS})
@@ -280,13 +301,13 @@ message("MOVE3D-QTGUI_LIBRARIES : ${MOVE3D-QTGUI_LIBRARIES}")
 
 IF( MULTILOCALPATH )
 
-#-------------- GBM ------------------------------------------------------------
+    #-------------- gbM -----------------
     pkg_check_modules(GBM REQUIRED gbM)
     include_directories(${GBM_INCLUDE_DIR})
     SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${GBM_INCLUDE_DIR})
     SET(LIBS ${LIBS} ${GBM_LIBRARIES})
 
-#-------------- SOFTMOTION -----------------------------------------------------
+    #-------------- softMotion -----------
     pkg_check_modules(SOFTMOTION REQUIRED softMotion-libs)
     include_directories(${SOFTMOTION_INCLUDE_DIR})
     SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${SOFTMOTION_INCLUDE_DIRS})
@@ -294,20 +315,14 @@ IF( MULTILOCALPATH )
 
 ENDIF()
 
-IF(QT_LIBRARY)
-
-  # generate the UI headers
-  # QT4_WRAP_UI(Move3DGUI_QT_UI_HEADERS ${BM3D_QT_UI_FILES})
-
-  # Qt4 files that need to be preprocessed
-  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp)
-
-
-ENDIF(QT_LIBRARY)
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include)
+include_directories(/home/jmainpri/catkin_ws_move3d/build/move3d_ros) # TODO FIX remove
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
@@ -315,9 +330,14 @@ include_directories(
 
 ## Declare a cpp library
 # add_library(move3d_ros src/${PROJECT_NAME}/move3d_ros.cpp )
-add_executable(move3d_ros_node src/move3d_ros_node.cpp ${Move3DGUI_QT_MOC})
-add_dependencies(move3d_ros_node ${catkin_EXPORTED_TARGETS} )
-target_link_libraries(move3d_ros_node ${catkin_LIBRARIES} ${LIBS})
+
+add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS})
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${LIBS})
+
+add_executable(${PROJECT_NAME}_node src/move3d_ros_node.cpp ${Move3DGUI_QT_MOC})
+add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS} )
+target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME} ${catkin_LIBRARIES} ${LIBS})
 
 #############
 ## Install ##
@@ -334,9 +354,9 @@ target_link_libraries(move3d_ros_node ${catkin_LIBRARIES} ${LIBS})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS move3d_ros_node
+install(TARGETS ${PROJECT_NAME} move3d_ros_node
    #ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-   #LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

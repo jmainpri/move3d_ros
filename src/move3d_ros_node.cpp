@@ -33,6 +33,7 @@
 #endif
 
 #include "move3d_ros_node.hpp"
+#include "move3d_ros_gui.hpp"
 #include "planner_handler.hpp"
 #include "qtMainInterface/mainwindow.hpp"
 #include "qtMainInterface/settings.hpp"
@@ -41,6 +42,7 @@
 #include "API/project.hpp"
 #include "API/libmove3d_api.hpp"
 #include "API/libmove3d_simple_api.hpp"
+#include "API/Graphic/drawModule.hpp"
 
 #include <iostream>
 #include <string>
@@ -49,12 +51,8 @@
 
 #include <mcheck.h>
 
-#ifdef QT_GL
 QSemaphore* sem;
 GLWidget* openGlWidget;
-#endif
-
-#include "API/Graphic/drawModule.hpp"
 
 //#ifdef USE_GLUT
 //#include "glutWindow.hpp"
@@ -254,7 +252,7 @@ static char* molecule_xpm[] = {
     (char*) "                b # a e p.b.# C                                 ",
     (char*) "                  o h # # h ^                                   "};
 
-#ifdef QT_GL
+
 /**
  * @ingroup qtWindow
  * @brief Main application with the QT_WidgetMain double thread class (X-Forms Thread)
@@ -290,44 +288,6 @@ void draw_opengl()
 
 PlannerHandler* global_plannerHandler(NULL);
 
-/*
-if(UI)
-{
-  app = new QApplication(argc, argv);
-  coreApp = app;
-  app->setWindowIcon(QIcon(QPixmap(molecule_xpm)));
-}
-else
-{
-  coreApp = new QCoreApplication(argc, argv);
-}
-
-// transform the std::vector<char*> into the suitable type : char**
-char** prunedArgvPtr = new char*[prunedArgv.size()];
-for(unsigned i(0); i < prunedArgv.size(); i++)
-{
-  prunedArgvPtr[i] = prunedArgv[i];
-}
-
-mPlannerThread = new PlannerThread(prunedArgc, prunedArgvPtr);
-mPlannerThread->setScript(script);
-// no UI
- if(!UI)
-  {
-  connect(mPlannerThread, SIGNAL(done()), this, SLOT(exit()));
-  mPlannerThread->start();
-  std::cout << "Running script " << script.toStdString() << std::endl;
-  QMetaObject::invokeMethod(mPlannerThread,"script",Qt::QueuedConnection,Q_ARG(QString, script));
-  }
-  // UI
-  else {
-    connect(mPlannerThread, SIGNAL(initialized()),this, SLOT(initInterface()));
-    mPlannerThread->start();
-  }
-
-  return coreApp->exec();
-  }
-*/
 
 void Main_threads::loadSettings()
 {
@@ -351,12 +311,14 @@ void Main_threads::loadSettings()
 
 void Main_threads::initInterface()
 {
-#ifdef QT_UI_XML_FILES
     // Sets up gui specific parameter structure
     initGuiParameters();
 
     MainWindow* w = new MainWindow();
     global_w = w;
+
+    // Start ROS NODE
+    w->addTab(new Move3DRosGui(), "ROS GUI");
 
     // Start
     connect( w, SIGNAL(runClicked()), this, SLOT(selectPlanner()));
@@ -427,7 +389,6 @@ void Main_threads::initInterface()
 //        // setWindowState(Qt::WindowFullScreen);
 //        cout << "MOVE WINDOWN TO MAIN MONITOR" << endl;
 //    }
-#endif
 }
 
 int Main_threads::run(int argc, char** argv)
@@ -659,15 +620,14 @@ int Simple_threads::run(int argc, char** argv)
     //		app->processEvents();
     //	}
 }
-#else
 
 // Doesn't draw the opengl display
-void draw_opengl()
-{
+//void draw_opengl()
+//{
 
-}
+//}
 
-#endif
+
 /**
  * @ingroup qtWindow
  * @brief Main function of Move3D
@@ -708,7 +668,7 @@ int main(int argc, char *argv[])
         //			cout << "Error : Glut is not linked" << endl;
         //#endif
     }
-#ifdef QT_GL
+
     case qtWindow:
     {
         Main_threads main;
@@ -721,7 +681,7 @@ int main(int argc, char *argv[])
         Simple_threads main;
         return main.run(argc, argv);
     }
-#endif
+
     case MainMHP:
     {
         return mainMhp(argc, argv);
