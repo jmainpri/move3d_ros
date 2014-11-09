@@ -446,10 +446,15 @@ int Main_threads::run(int argc, char** argv)
 
     //mtrace();
 
+    // Remove 2 last argument from ros
+    string node_name = argv[0];
+    argc -= 2;
+
     // Find if a file is passed as argument and set openFileDialog mode
     // Also check for nogui mode
     while (ith_arg < argc)
     {
+        cout << "argv[" << ith_arg << "] : " << argv[ith_arg] << endl;
         if (string(argv[ith_arg]) == "-nogui")
         {
             noGui = true;

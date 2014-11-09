@@ -1,0 +1,21 @@
+<launch>
+
+  <arg name="output" default="screen"/>
+  <arg name="use_file" default="-f" />
+  <arg name="file" default="/home/jmainpri/workspace/assets/Pr2/pr2.p3d" />
+
+  <!--
+  <arg name="left_arm_pose_topic" default="/l_arm_pose_controller/pose" />
+  <arg name="right_arm_pose_topic" default="/r_arm_pose_controller/pose" />
+  -->
+
+  <!-- Load the parameters that MoveIt! needs
+  <include file="$(find archie_moveit_config)/launch/planning_context.launch" />
+  -->
+
+  <!-- Start the left arm controller -->
+  <node pkg="move3d_ros" type="move3d_ros_node" name="move3d_pr2" output="$(arg output)" args="$(arg use_file) $(arg file)">
+    <!-- <param name="arm_pose_topic" type="string" value="$(arg left_arm_pose_topic)" /> -->
+  </node>
+
+</launch>
