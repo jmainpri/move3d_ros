@@ -11,8 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   trajectory_msgs
 )
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(cmake_modules REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -91,29 +90,241 @@ catkin_package(
 ## Build ##
 ###########
 
+
+
+#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# --- Compilation Flags --------------------------------------------------------
+# ------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+SET(Move3D_CompilationFlags "")
+SET(Move3D_LinkedCompilationFlags "")
+
+MACRO(Move3D_flag flagName description status)
+  SET(flagName "${flagName}")
+  SET(description "${description}")
+  SET(status "${status}")
+  OPTION(${flagName} ${description} ${status})
+  LIST(APPEND Move3D_CompilationFlags ${flagName})
+  FOREACH(linkFlag ${ARGN})
+    LIST(APPEND Move3D_LinkedCompilationFlags "${flagName}:${linkFlag}")
+  ENDFOREACH(linkFlag)
+#  set_property(CACHE ANIMATION PROPERTY VALUE ON)
+ENDMACRO(Move3D_flag)
+
+MACRO(Move3D_CheckCompilationFlags)
+  SET(Move3D_ActiveFlags "")
+  #MESSAGE ("Active Flags :")
+  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/smpFlags "#Generated File Do not modify!!!\n" )
+  FILE(APPEND ${CMAKE_CURRENT_BINARY_DIR}/smpFlags "Move3D_COMPILATION_FLAGS = ")
+  FOREACH(flag ${Move3D_CompilationFlags})
+    IF(${flag})
+      FILE(APPEND ${CMAKE_CURRENT_BINARY_DIR}/Move3DFlags "-D${flag} ")
+      #MESSAGE("${flag}")
+      ADD_DEFINITIONS("-D${flag}")
+      LIST(APPEND Move3D_ActiveFlags ${flag})
+    ENDIF()
+  ENDFOREACH(flag)
+ENDMACRO(Move3D_CheckCompilationFlags)
+
+Move3D_flag( QT_LIBRARY "Sets QtLibrary compiling mode" ON)
+Move3D_flag( QT_GL "Sets QtLibrary compiling mode" ON QT_LIBRARY)
+Move3D_flag( QT_UI_XML_FILES "Sets QtLibrary compiling mode" ON QT_LIBRARY)
+
+Move3D_flag( HRI_COSTSPACE "With the hri work" ON)
+
+
+Move3D_flag( P3D_CONSTRAINTS "Compilation with module Constraints" ON)
+Move3D_flag( P3D_COLLISION_CHECKING "Compilation with module Collision Checking" ON)
+Move3D_flag( P3D_LOCALPATH "Compilation with module Localpath" ON)
+Move3D_flag( P3D_PLANNER "Compilation with module Planner" ON)
+Move3D_flag( LIGHT_PLANNER "Compilation with module Light Planner" ON)
+Move3D_flag( GRASP_PLANNING "Compilation with module Manipulation Planner" ON)
+Move3D_flag( MULTILOCALPATH "Compilation with module Multilocalpath" ON)
+Move3D_flag( MULTIGRAPH "Compilation with module Multi-Graph" OFF)
+
+Move3D_flag( MOVE3D_CORE "Compiles the planning API and planners" ON)
+
+Move3D_flag( HRI_PLANNER "Human Robot Interaction planner module" ON USE_GSL PQP)
+
+Move3D_flag( USE_GBM "Compilation with module Multilocalpath" OFF)
+Move3D_flag( USE_GLUT "Compilation with a glut window" OFF)
+Move3D_flag( USE_GSL "Mathematic Library" OFF)
+Move3D_flag( USE_QWT "Compilation with technical widget" ON)
+
+Move3D_flag( PQP "Compilation with technical widget" ON)
+
+# Find important packages
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
+#-------------- Eigen ----------------------------------------------------------
+
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
+message(Eigen_INCLUDE_DIRS : ${EIGEN3_INCLUDE_DIRS})
+
+#-------------- Boost ----------------------------------------------------------
+
+# boost is used e.g. for managing the cost functions (T-RRT).
+#  FIND_PACKAGE(Boost REQUIRED)
+#  INCLUDE_directories(${BOOST_INCLUDE_DIR})
+#  SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${BOOST_INCLUDE_DIR})
+
+# boost is used e.g. for managing the cost functions (T-RRT).
+find_package(Boost REQUIRED)
+include_directories(/opt/local/include/)
+set(INCLUDE_DIRS ${INCLUDE_DIRS} /opt/local/include/ ${BOOST_INCLUDE_DIRS})
+
+## System dependencies are found with CMake's conventions
+# find_package(Boost REQUIRED COMPONENTS system)
+
+#-------------- Qt Library ----------------------------------------------------
+IF(QT_LIBRARY)
+  # This also fails if qt4 is installed, but system is configured for qt3 qmake
+  FIND_PACKAGE(Qt4 REQUIRED)
+  INCLUDE_DIRECTORIES(${QT_INCLUDE_DIR})
+  SET(Move3DGUI_COMPILATION_INCLUDES ${Move3DGUI_COMPILATION_INCLUDES} ${QT_INCLUDE_DIR})
+  IF(QT_GL)
+    SET(QT_USE_QTOPENGL TRUE)
+  ENDIF(QT_GL)
+  INCLUDE(${QT_USE_FILE})
+  SET(LIBS ${LIBS} ${QT_LIBRARIES})
+ENDIF(QT_LIBRARY)
+FIND_PACKAGE(X11 REQUIRED)
+INCLUDE_directories(${X11_INCLUDE_DIR})
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${X11_INCLUDE_DIR})
+SET(LIBS ${LIBS} ${X11_LIBRARIES})
+FIND_PACKAGE(LibXml2 REQUIRED)
+INCLUDE_directories(${LIBXML2_INCLUDE_DIR})
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${LIBXML2_INCLUDE_DIR})
+SET(LIBS ${LIBS} ${LIBXML2_LIBRARIES})
+IF(APPLE)
+        IF(QT_LIBRARY)
+                FIND_PACKAGE(OpenGL REQUIRED)
+                INCLUDE_directories("${OPENGL_INCLUDE_DIR}/Headers")
+                SET(INCLUDE_DIRS ${INCLUDE_DIRS} "${OPENGL_INCLUDE_DIR}/Headers")
+                SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
+                #Message(${OPENGL_INCLUDE_DIR})
+                #Message(${OPENGL_LIBRARIES})
+                IF(WITH_XFORMS)
+                        FIND_PACKAGE(GLU REQUIRED)
+                        INCLUDE_directories(${GLU_INCLUDE_DIR})
+                        SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${GLU_INCLUDE_DIR})
+                        SET(LIBS ${LIBS} ${GLU_LIBRARIES})
+                        FIND_PACKAGE(GL REQUIRED)
+                        INCLUDE_directories(${GL_INCLUDE_DIR})
+                        SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${GL_INCLUDE_DIR})
+                        SET(LIBS ${LIBS} ${GL_LIBRARIES})
+                ENDIF(WITH_XFORMS)
+        ENDIF(QT_LIBRARY)
+ELSE(APPLE)
+  FIND_PACKAGE(OpenGL REQUIRED)
+  INCLUDE_directories(${OPENGL_INCLUDE_DIR})
+  SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR})
+  SET(LIBS ${LIBS} ${OPENGL_LIBRARIES})
+ENDIF(APPLE)
+
+find_package (PkgConfig REQUIRED)
+
+# ------------------- libmove3d ----------------------------------------------
+
+pkg_check_modules(MOVE3D REQUIRED libmove3d)
+include_directories(${MOVE3D_INCLUDE_DIRS})
+LINK_DIRECTORIES( ${MOVE3D_LIBRARY_DIRS} )
+SET(LIBS ${LIBS} ${MOVE3D_LIBRARIES})
+ADD_DEFINITIONS(${MOVE3D_CFLAGS})
+
+message("MOVE3D_INCLUDE_DIRS : ${MOVE3D_INCLUDE_DIRS}")
+message("MOVE3D_LIBRARIES : ${MOVE3D_LIBRARIES}")
+message("MOVE3D_CFLAGS : ${MOVE3D_CFLAGS}")
+
+IF(UNIX)
+  ADD_DEFINITIONS(-DUNIX)
+  IF(APPLE)
+    ADD_DEFINITIONS(-DMACOSX -x c++)
+    SET (CMAKE_SHARED_LINKER_FLAGS "-dynamiclib -Wl,-headerpad_max_install_names,-undefined,dynamic_lookup")
+  ELSE(APPLE)
+    ADD_DEFINITIONS(-DLINUX)
+  ENDIF(APPLE)
+ELSE(UNIX)
+ MESSAGE (FATAL_ERROR "Not supported Platform")
+ENDIF(UNIX)
+
+#MESSAGE( MOVE3D_LIBRARIES = ${MOVE3D_LIBRARIES})
+
+#-------------- Move3D-motionPlanner-libs --------------------------------------
+
+pkg_check_modules(MOVE3D-PLANNERS REQUIRED libmove3d-planners)
+include_directories(${MOVE3D-PLANNERS_INCLUDE_DIRS})
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${MOVE3D-PLANNERS_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${MOVE3D-PLANNERS_LIBRARIES})
+ADD_DEFINITIONS(${MOVE3D-PLANNERS_CFLAGS})
+
+message("MOVE3D-PLANNERS_INCLUDE_DIRS : ${MOVE3D-PLANNERS_INCLUDE_DIRS}")
+message("MOVE3D-PLANNERS_LIBRARIES : ${MOVE3D-PLANNERS_LIBRARIES}")
+#-------------- Move3D-Qt-Gui-libs --------------------------------------
+
+pkg_check_modules(MOVE3D-QTGUI REQUIRED move3d-qt-gui-libs)
+INCLUDE_directories(${MOVE3D-QTGUI_INCLUDE_DIRS})
+SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${MOVE3D-QTGUI_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${MOVE3D-QTGUI_LIBRARIES})
+ADD_DEFINITIONS(${MOVE3D-QTGUI_CFLAGS})
+
+message("MOVE3D-QTGUI_DIRS : ${MOVE3D-QTGUI_INCLUDE_DIRS}")
+message("MOVE3D-QTGUI_LIBRARIES : ${MOVE3D-QTGUI_LIBRARIES}")
+
+
+IF( MULTILOCALPATH )
+
+#-------------- GBM ------------------------------------------------------------
+    pkg_check_modules(GBM REQUIRED gbM)
+    include_directories(${GBM_INCLUDE_DIR})
+    SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${GBM_INCLUDE_DIR})
+    SET(LIBS ${LIBS} ${GBM_LIBRARIES})
+
+#-------------- SOFTMOTION -----------------------------------------------------
+    pkg_check_modules(SOFTMOTION REQUIRED softMotion-libs)
+    include_directories(${SOFTMOTION_INCLUDE_DIR})
+    SET(INCLUDE_DIRS ${INCLUDE_DIRS} ${SOFTMOTION_INCLUDE_DIRS})
+    SET(LIBS ${LIBS} ${SOFTMOTION_LIBRARIES})
+
+ENDIF()
+
+IF(QT_LIBRARY)
+
+  # generate the UI headers
+  # QT4_WRAP_UI(Move3DGUI_QT_UI_HEADERS ${BM3D_QT_UI_FILES})
+
+  # Qt4 files that need to be preprocessed
+  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp)
+
+
+ENDIF(QT_LIBRARY)
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(include)
+
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(move3d_ros
-#   src/${PROJECT_NAME}/move3d_ros.cpp
-# )
+# add_library(move3d_ros src/${PROJECT_NAME}/move3d_ros.cpp )
 
 ## Declare a cpp executable
-# add_executable(move3d_ros_node src/move3d_ros_node.cpp)
+add_executable(move3d_ros_node src/move3d_ros_node.cpp ${Move3DGUI_QT_MOC})
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(move3d_ros_node move3d_ros_generate_messages_cpp)
+# add_dependencies(move3d_ros_node)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(move3d_ros_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(move3d_ros_node ${LIBS} ${catkin_LIBRARIES})
 
 #############
 ## Install ##
