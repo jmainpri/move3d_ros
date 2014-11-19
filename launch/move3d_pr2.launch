@@ -4,7 +4,7 @@
   <arg name="file" default="-f $(env HOME_MOVE3D)/../assets/Pr2/pr2.p3d" />
   <arg name="guiparams" default="-setgui -params $(find move3d_ros)/guiparams/pr2" />
 
-  <!-- Load the parameters that MoveIt! needs
+  <!-- INCLUDE OTHER FILE
   <include file="$(find archie_moveit_config)/launch/planning_context.launch" />
   -->
 

@@ -194,7 +194,7 @@ void Move3DRosGui::initPr2()
     q_cur_ = robot_->getInitPos();
 }
 
-void Move3DRosGui::init()
+void Move3DRosGui::run()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
@@ -231,6 +231,6 @@ void Move3DRosGui::init()
 
 void Move3DRosGui::start()
 {
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::init, this ) );
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::run, this ) );
     emit(selectedPlanner(QString("BoostFunction")));
 }

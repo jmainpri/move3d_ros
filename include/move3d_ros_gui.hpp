@@ -49,7 +49,7 @@ public:
     explicit Move3DRosGui(QWidget *parent = 0);
     ~Move3DRosGui();
 
-    void init();
+    void run();
     void initPr2();
     void playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
 
