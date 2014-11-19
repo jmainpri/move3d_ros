@@ -55,9 +55,12 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
     ui_(new Ui::Move3DRosGui)
 {
     ui_->setupUi(this);
+
     connect(ui_->pushButtonStart,SIGNAL(clicked()),this,SLOT(start()));
     connect(this,  SIGNAL(selectedPlanner(QString)),global_plannerHandler, SLOT(startPlanner(QString)));
+
     joint_state_rate_ = 30;
+    update_robot_ = false;
 }
 
 Move3DRosGui::~Move3DRosGui()
@@ -107,17 +110,31 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
 
     //    current_arm_config_ = new_arm_config;
 
-    cout << "Update Move3D configuration : " << new_arm_config.transpose() << endl;
+    // cout << "Update Move3D configuration : " << new_arm_config.transpose() << endl;
 
-    Move3D::confPtr_t q_cur = robot_->getCurrentPos();
-    q_cur->setFromEigenVector( new_arm_config, dof_ids_ );
-    robot_->setAndUpdate(*q_cur);
+    if( q_cur_.get() == NULL )
+    {
+        ROS_ERROR("Current robot configuration not initialized");
+        return;
+    }
 
-    // OPENGL DRAW
-    g3d_draw_allwin_active();
+    q_cur_->setFromEigenVector( new_arm_config, dof_ids_ );
+
+    if( update_robot_ )
+    {
+        robot_->setAndUpdate(*q_cur_);
+
+        // OPENGL DRAW
+        g3d_draw_allwin_active();
+    }
 
     // Reset watchdog timer
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
+}
+
+void Move3DRosGui::playTrajectory()
+{
+    cout << __PRETTY_FUNCTION__ << endl;
 }
 
 void Move3DRosGui::initPr2()
@@ -147,6 +164,8 @@ void Move3DRosGui::initPr2()
     dof_ids_[4] = robot_->getJoint("right-Arm5")->getIndexOfFirstDof();
     dof_ids_[5] = robot_->getJoint("right-Arm6")->getIndexOfFirstDof();
     dof_ids_[6] = robot_->getJoint("right-Arm7")->getIndexOfFirstDof();
+
+    q_cur_ = robot_->getInitPos();
 }
 
 void Move3DRosGui::init()

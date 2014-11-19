@@ -49,6 +49,7 @@ public:
 
     void init();
     void initPr2();
+    void playTrajectory();
 
 public slots:
     void start();
@@ -60,7 +61,10 @@ private:
     int joint_state_rate_;
     std::vector<std::string> joint_names_;
     std::vector<int> dof_ids_;
+
     Move3D::Robot* robot_;
+    Move3D::confPtr_t q_cur_;
+    bool update_robot_;
 
     void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
     Ui::Move3DRosGui *ui_;
