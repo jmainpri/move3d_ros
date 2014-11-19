@@ -40,6 +40,8 @@
 #include "API/Device/robot.hpp"
 #include "planner_handler.hpp"
 
+#include <libmove3d/include/Graphic-pkg.h>
+
 #include <boost/bind.hpp>
 #include <cmath>
 #include <time.h>
@@ -65,7 +67,7 @@ Move3DRosGui::~Move3DRosGui()
 
 void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config)
 {
-     cout << __PRETTY_FUNCTION__ << endl;
+     //cout << __PRETTY_FUNCTION__ << endl;
 
     if( joint_names_.empty() ){
         ROS_ERROR("Joint names not set");
@@ -105,8 +107,14 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
 
     //    current_arm_config_ = new_arm_config;
 
+    cout << "Update Move3D configuration : " << new_arm_config.transpose() << endl;
+
     Move3D::confPtr_t q_cur = robot_->getCurrentPos();
-    q_cur->setFromEigenVector(new_arm_config, dof_ids_ );
+    q_cur->setFromEigenVector( new_arm_config, dof_ids_ );
+    robot_->setAndUpdate(*q_cur);
+
+    // OPENGL DRAW
+    g3d_draw_allwin_active();
 
     // Reset watchdog timer
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
@@ -123,13 +131,13 @@ void Move3DRosGui::initPr2()
     }
 
     joint_names_.resize(7);
-    joint_names_[0] = "l_shoulder_pan_joint";
-    joint_names_[1] = "l_shoulder_lift_joint";
-    joint_names_[2] = "l_upper_arm_roll_joint";
-    joint_names_[3] = "l_elbow_flex_joint";
-    joint_names_[4] = "l_forearm_roll_joint";
-    joint_names_[5] = "l_wrist_flex_joint";
-    joint_names_[6] = "l_wrist_roll_joint";
+    joint_names_[0] = "r_shoulder_pan_joint";
+    joint_names_[1] = "r_shoulder_lift_joint";
+    joint_names_[2] = "r_upper_arm_roll_joint";
+    joint_names_[3] = "r_elbow_flex_joint";
+    joint_names_[4] = "r_forearm_roll_joint";
+    joint_names_[5] = "r_wrist_flex_joint";
+    joint_names_[6] = "r_wrist_roll_joint";
 
     dof_ids_.resize(7);
     dof_ids_[0] = robot_->getJoint("right-Arm1")->getIndexOfFirstDof();
