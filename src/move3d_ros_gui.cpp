@@ -38,20 +38,24 @@
 
 #include "API/project.hpp"
 #include "API/Device/robot.hpp"
+#include "planner_handler.hpp"
 
+#include <boost/bind.hpp>
 #include <cmath>
 #include <time.h>
-
 #include <sstream>
 
+using std::cout;
+using std::endl;
 
 Move3DRosGui::Move3DRosGui(QWidget *parent) :
     QWidget(parent),
     ui_(new Ui::Move3DRosGui)
 {
     ui_->setupUi(this);
-
     connect(ui_->pushButtonStart,SIGNAL(clicked()),this,SLOT(start()));
+    connect(this,  SIGNAL(selectedPlanner(QString)),global_plannerHandler, SLOT(startPlanner(QString)));
+    joint_state_rate_ = 30;
 }
 
 Move3DRosGui::~Move3DRosGui()
@@ -59,53 +63,100 @@ Move3DRosGui::~Move3DRosGui()
     delete ui_;
 }
 
-#define PR2_ARM_JOINTS 7
-
-void Move3DRosGui::GetPr2RArmState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config)
+void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config)
 {
-    Move3D::Robot* pr2 = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
+     cout << __PRETTY_FUNCTION__ << endl;
+
+    if( joint_names_.empty() ){
+        ROS_ERROR("Joint names not set");
+        return;
+    }
 
     // Extract joint positions in the right order
-    if (arm_config->joint_names.size() != arm_config->actual.positions.size() || arm_config->joint_names.size() != PR2_ARM_JOINTS)
+    if (joint_config->joint_names.size() != joint_config->actual.positions.size() ||
+            joint_config->joint_names.size() != joint_names_.size() )
     {
         ROS_ERROR("Malformed configuration update - skipping update");
         return;
     }
-    std::map<std::string, double> arm_configuration;
-    for (size_t idx = 0; idx < arm_config->joint_names.size(); idx ++)
-    {
-        arm_configuration[arm_config->joint_names[idx]] = arm_config->actual.positions[idx];
-    }
-    //std::cout << "Got updated config: " << PrettyPrint(arm_configuration, true) << std::endl;
-    // Set the config
-    std::vector<double> new_arm_config(PR2_ARM_JOINTS);
-    new_arm_config[0] = arm_configuration[joint_names_[0]];
-    new_arm_config[1] = arm_configuration[joint_names_[1]];
-    new_arm_config[2] = arm_configuration[joint_names_[2]];
-    new_arm_config[3] = arm_configuration[joint_names_[3]];
-    new_arm_config[4] = arm_configuration[joint_names_[4]];
-    new_arm_config[5] = arm_configuration[joint_names_[5]];
-    new_arm_config[6] = arm_configuration[joint_names_[6]];
-//    current_arm_config_ = new_arm_config;
 
+    if( robot_ == NULL ){
+        ROS_ERROR("No Move3D robot selected");
+        return;
+    }
+
+    // Set the config
+    Eigen::VectorXd new_arm_config(joint_names_.size());
+
+    try
+    {
+        std::map<std::string, double> arm_configuration;
+        for (size_t idx = 0; idx < joint_config->joint_names.size(); idx ++)
+            arm_configuration[joint_config->joint_names[idx]] = joint_config->actual.positions[idx];
+
+        for (size_t idx = 0; idx < new_arm_config.size(); idx ++)
+            new_arm_config[idx] = arm_configuration[joint_names_[idx]];
+    }
+    catch(...)
+    {
+        ROS_ERROR("Could not map joint correctly");
+        return;
+    }
+
+    //    current_arm_config_ = new_arm_config;
+
+    Move3D::confPtr_t q_cur = robot_->getCurrentPos();
+    q_cur->setFromEigenVector(new_arm_config, dof_ids_ );
 
     // Reset watchdog timer
-//    arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
-
-
+    // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
-int Move3DRosGui::init(int argc, char **argv)
+void Move3DRosGui::initPr2()
 {
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
+    if( robot_ == NULL ){
+        ROS_ERROR("No robot named pr2 in Move3D");
+        return;
+    }
+
+    joint_names_.resize(7);
+    joint_names_[0] = "l_shoulder_pan_joint";
+    joint_names_[1] = "l_shoulder_lift_joint";
+    joint_names_[2] = "l_upper_arm_roll_joint";
+    joint_names_[3] = "l_elbow_flex_joint";
+    joint_names_[4] = "l_forearm_roll_joint";
+    joint_names_[5] = "l_wrist_flex_joint";
+    joint_names_[6] = "l_wrist_roll_joint";
+
+    dof_ids_.resize(7);
+    dof_ids_[0] = robot_->getJoint("right-Arm1")->getIndexOfFirstDof();
+    dof_ids_[1] = robot_->getJoint("right-Arm2")->getIndexOfFirstDof();
+    dof_ids_[2] = robot_->getJoint("right-Arm3")->getIndexOfFirstDof();
+    dof_ids_[3] = robot_->getJoint("right-Arm4")->getIndexOfFirstDof();
+    dof_ids_[4] = robot_->getJoint("right-Arm5")->getIndexOfFirstDof();
+    dof_ids_[5] = robot_->getJoint("right-Arm6")->getIndexOfFirstDof();
+    dof_ids_[6] = robot_->getJoint("right-Arm7")->getIndexOfFirstDof();
+}
+
+void Move3DRosGui::init()
+{
+     cout << __PRETTY_FUNCTION__ << endl;
+
+    int argc = 0;
+    char **argv = NULL;
     ros::init(argc, argv, "move3d_pr2");
-
-    ros::Subscriber sub = nh_.subscribe("/r_arm_controller/state", 1, &Move3DRosGui::GetPr2RArmState, this);
+    nh_ = new ros::NodeHandle();
+    ros::Subscriber sub = nh_->subscribe("/r_arm_controller/state", 1, &Move3DRosGui::GetJointState, this);
+    ros::Rate spin_rate(joint_state_rate_);
     ros::spin();
-
-    return 0;
 }
 
 void Move3DRosGui::start()
 {
-    init(0, NULL);
+    initPr2();
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::init, this ) );
+    emit(selectedPlanner(QString("BoostFunction")));
 }

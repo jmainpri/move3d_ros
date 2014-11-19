@@ -33,6 +33,8 @@
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 #include <ros/ros.h>
 
+#include "API/Device/robot.hpp"
+
 namespace Ui {
 class Move3DRosGui;
 }
@@ -45,17 +47,24 @@ public:
     explicit Move3DRosGui(QWidget *parent = 0);
     ~Move3DRosGui();
 
-    int init(int argc, char **argv);
+    void init();
+    void initPr2();
 
 public slots:
     void start();
+
+signals:
+  void selectedPlanner(QString);
     
 private:
+    int joint_state_rate_;
     std::vector<std::string> joint_names_;
+    std::vector<int> dof_ids_;
+    Move3D::Robot* robot_;
 
-    void GetPr2RArmState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
+    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
     Ui::Move3DRosGui *ui_;
-    ros::NodeHandle nh_;
+    ros::NodeHandle* nh_;
 };
 
 #endif // MOVE3D_ROS_HPP
