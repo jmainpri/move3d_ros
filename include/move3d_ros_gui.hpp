@@ -31,6 +31,8 @@
 #include <QWidget>
 
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
+#include <pr2_controllers_msgs/JointTrajectoryAction.h>
+#include <actionlib/client/simple_action_client.h>
 #include <ros/ros.h>
 
 #include "API/Device/robot.hpp"
@@ -49,7 +51,7 @@ public:
 
     void init();
     void initPr2();
-    void playTrajectory();
+    void playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
 
 public slots:
     void start();
@@ -68,7 +70,9 @@ private:
 
     void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
     Ui::Move3DRosGui *ui_;
+
     ros::NodeHandle* nh_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > arm_client_;
 };
 
 #endif // MOVE3D_ROS_HPP

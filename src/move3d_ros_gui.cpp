@@ -132,16 +132,42 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
-void Move3DRosGui::playTrajectory()
+void Move3DRosGui::playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config)
 {
     cout << __PRETTY_FUNCTION__ << endl;
+
+    pr2_controllers_msgs::JointTrajectoryGoal command;
+
+    double execution_timestep = 5.0;
+
+    // Populate command
+    command.trajectory.joint_names = joint_names_;
+    command.trajectory.header.stamp = ros::Time::now();
+
+    // Populate target point
+    trajectory_msgs::JointTrajectoryPoint start_point;
+    start_point.positions = current_config;
+    start_point.velocities.resize(start_point.positions.size(), 0.0);
+    start_point.time_from_start = ros::Duration(0.0);
+
+    // Populate target point
+    trajectory_msgs::JointTrajectoryPoint target_point;
+    target_point.positions = target_config;
+    target_point.velocities.resize(target_point.positions.size(), 0.0);
+    // Set the execution time
+    target_point.time_from_start = ros::Duration(execution_timestep);
+
+    // Add point
+    command.trajectory.points.push_back(target_point);
+
+    // Command the arm
+    arm_client_->sendGoal(command);
 }
 
 void Move3DRosGui::initPr2()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
     if( robot_ == NULL ){
         ROS_ERROR("No robot named pr2 in Move3D");
         return;
@@ -170,20 +196,41 @@ void Move3DRosGui::initPr2()
 
 void Move3DRosGui::init()
 {
-     cout << __PRETTY_FUNCTION__ << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
+    if( robot_ == NULL ){
+        ROS_ERROR("No ROBOT in Move3D");
+        return;
+    }
+
+    if( robot_->getName().find("PR2") != std::string::npos )
+        initPr2();
+    else {
+        ROS_ERROR("No robot named PR2 in Move3D");
+        return;
+    }
 
     int argc = 0;
     char **argv = NULL;
     ros::init(argc, argv, "move3d_pr2");
     nh_ = new ros::NodeHandle();
+
+    // Subscribe to get current posture
     ros::Subscriber sub = nh_->subscribe("/r_arm_controller/state", 1, &Move3DRosGui::GetJointState, this);
+
+    // Setup trajectory controller interface
+    arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("right_arm"), true));
+    ROS_INFO("Waiting for arm controllers to come up...");
+    arm_client_->waitForServer();
+
+    // Spin node
     ros::Rate spin_rate(joint_state_rate_);
     ros::spin();
 }
 
 void Move3DRosGui::start()
 {
-    initPr2();
     global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::init, this ) );
     emit(selectedPlanner(QString("BoostFunction")));
 }
