@@ -47,6 +47,7 @@ class Move3DRosGui : public QWidget
     
 public:
     enum arm_t {left, right} arm_;
+    enum module_state_t {online, offline};
 
     explicit Move3DRosGui(QWidget *parent = 0);
     ~Move3DRosGui();
@@ -63,18 +64,27 @@ public:
 public slots:
 
     void start();
-    void setState(bool online);
+    void setState(module_state_t state);
     void loadMotions();
 
 
 signals:
 
     void selectedPlanner(QString);
+    void drawAllWinActive();
     
 
 private:
 
-  int joint_state_rate_;
+    Ui::Move3DRosGui *ui_;
+
+    int joint_state_rate_;
+    int joint_state_received_;
+    int draw_rate_;
+
+    std::string active_state_topic_name_;
+    std::string right_arm_topic_name_;
+    std::string left_arm_topic_name_;
 
     std::vector<std::string> right_arm_joint_names_;
     std::vector<std::string> left_arm_joint_names_;
@@ -84,13 +94,15 @@ private:
     std::vector<int> left_arm_dof_ids_;
     std::vector<int> active_dof_ids_;
 
+
     Move3D::Robot* robot_;
     Move3D::confPtr_t q_cur_;
     bool update_robot_;
     std::vector<Move3D::Trajectory> move3d_trajs_;
 
-    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
-    Ui::Move3DRosGui *ui_;
+    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config,
+                       std::vector<std::string> joint_names,
+                       std::vector<int> dof_ids);
 
     ros::NodeHandle* nh_;
     MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > right_arm_client_;
