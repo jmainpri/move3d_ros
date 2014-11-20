@@ -46,25 +46,35 @@ class Move3DRosGui : public QWidget
     Q_OBJECT
     
 public:
+    enum arm_t {left, right} arm_;
+
     explicit Move3DRosGui(QWidget *parent = 0);
     ~Move3DRosGui();
 
     void run();
     void initPr2();
 
-    void playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
+    void executeElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
+    void executeMove3DTrajectory(const Move3D::Trajectory& traj);
     void loadMotions(std::string folder);
+    void setActiveArm(arm_t arm);
+
 
 public slots:
+
     void start();
     void setState(bool online);
     void loadMotions();
 
+
 signals:
-  void selectedPlanner(QString);
+
+    void selectedPlanner(QString);
     
+
 private:
-    int joint_state_rate_;
+
+  int joint_state_rate_;
 
     std::vector<std::string> right_arm_joint_names_;
     std::vector<std::string> left_arm_joint_names_;
@@ -83,7 +93,9 @@ private:
     Ui::Move3DRosGui *ui_;
 
     ros::NodeHandle* nh_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > arm_client_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > right_arm_client_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > left_arm_client_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > active_arm_client_;
 };
 
 #endif // MOVE3D_ROS_HPP

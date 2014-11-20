@@ -186,7 +186,54 @@ void Move3DRosGui::loadMotions(std::string folder)
     }
 }
 
-void Move3DRosGui::playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config)
+void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    pr2_controllers_msgs::JointTrajectoryGoal command;
+
+    double dt = .10; // 100 ms
+
+    // Populate command
+    command.trajectory.joint_names = active_joint_names_;
+    command.trajectory.header.stamp = ros::Time::now();
+
+
+    double t = 0.0;
+
+    double time_length = traj.getTimeLength();
+
+    while( true )
+    {
+        Move3D::confPtr_t q = traj.configAtTime( t );
+
+        // Get configuration
+        std::vector<double> config(active_dof_ids_.size());
+        for( int j=0; j<int(active_dof_ids_.size()); j++ )
+            config[j] = (*q)[ active_dof_ids_[j] ];
+
+        // Populate points
+        trajectory_msgs::JointTrajectoryPoint point;
+        point.positions = config;
+        point.velocities.resize( point.positions.size(), 0.0 );
+
+        // Set the execution time
+        point.time_from_start = ros::Duration( t );
+
+        // Add point
+        command.trajectory.points.push_back( point );
+
+        t += dt; // increase time
+        if( t > time_length ){
+            break;
+        }
+    }
+
+    // Command the arm
+    active_arm_client_->sendGoal( command );
+}
+
+void Move3DRosGui::executeElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
@@ -215,7 +262,24 @@ void Move3DRosGui::playElementaryMotion(const std::vector<double>& current_confi
     command.trajectory.points.push_back(target_point);
 
     // Command the arm
-    arm_client_->sendGoal(command);
+    active_arm_client_->sendGoal(command);
+}
+
+void Move3DRosGui::setActiveArm(arm_t arm)
+{
+    // SET THE ACTIVE ARM
+    arm_ = arm;
+
+    if( arm_ == left )
+    {
+        active_joint_names_ = left_arm_joint_names_;
+        active_dof_ids_     = left_arm_dof_ids_;
+    }
+    else
+    {
+        active_joint_names_ = right_arm_joint_names_;
+        active_dof_ids_     = right_arm_dof_ids_;
+    }
 }
 
 void Move3DRosGui::initPr2()
@@ -263,10 +327,6 @@ void Move3DRosGui::initPr2()
     left_arm_dof_ids_[5] = robot_->getJoint("left-Arm6")->getIndexOfFirstDof();
     left_arm_dof_ids_[6] = robot_->getJoint("left-Arm7")->getIndexOfFirstDof();
 
-    // SET THE ACTIVE ARM
-    active_joint_names_ = right_arm_joint_names_;
-    active_dof_ids_     = right_arm_dof_ids_;
-
     q_cur_ = robot_->getInitPos();
 }
 
@@ -287,20 +347,25 @@ void Move3DRosGui::run()
         return;
     }
 
-    setState(true);
-
     int argc = 0;
     char **argv = NULL;
-    ros::init(argc, argv, "move3d_pr2");
+    ros::init( argc, argv, "move3d_pr2" );
     nh_ = new ros::NodeHandle();
 
     // Subscribe to get current posture
     ros::Subscriber sub = nh_->subscribe("/r_arm_controller/state", 1, &Move3DRosGui::GetJointState, this);
 
     // Setup trajectory controller interface
-    arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("right_arm"), true));
+    right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("right_arm"), true));
     ROS_INFO("Waiting for arm controllers to come up...");
-    arm_client_->waitForServer();
+    right_arm_client_->waitForServer();
+
+    left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("right_arm"), true));
+    ROS_INFO("Waiting for arm controllers to come up...");
+    left_arm_client_->waitForServer();
+
+    setActiveArm( right );
+    setState(true);
 
     // Spin node
     ros::Rate spin_rate(joint_state_rate_);
