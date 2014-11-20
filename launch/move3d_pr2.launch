@@ -2,7 +2,7 @@
 
   <arg name="output" default="screen"/>
   <arg name="file" default="-f $(env HOME_MOVE3D)/../assets/Pr2/pr2.p3d" />
-  <arg name="guiparams" default="-setgui -params $(find move3d_ros)/guiparams/pr2" />
+  <arg name="guiparams" default="-setgui -not_rel_home -params $(find move3d_ros)/guiparams/pr2" />
 
   <!-- INCLUDE OTHER FILE
   <include file="$(find archie_moveit_config)/launch/planning_context.launch" />

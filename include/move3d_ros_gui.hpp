@@ -51,22 +51,33 @@ public:
 
     void run();
     void initPr2();
+
     void playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
+    void loadMotions(std::string folder);
 
 public slots:
     void start();
+    void setState(bool online);
+    void loadMotions();
 
 signals:
   void selectedPlanner(QString);
     
 private:
     int joint_state_rate_;
-    std::vector<std::string> joint_names_;
-    std::vector<int> dof_ids_;
+
+    std::vector<std::string> right_arm_joint_names_;
+    std::vector<std::string> left_arm_joint_names_;
+    std::vector<std::string> active_joint_names_;
+
+    std::vector<int> right_arm_dof_ids_;
+    std::vector<int> left_arm_dof_ids_;
+    std::vector<int> active_dof_ids_;
 
     Move3D::Robot* robot_;
     Move3D::confPtr_t q_cur_;
     bool update_robot_;
+    std::vector<Move3D::Trajectory> move3d_trajs_;
 
     void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config);
     Ui::Move3DRosGui *ui_;

@@ -39,10 +39,12 @@
 #include "API/project.hpp"
 #include "API/Device/robot.hpp"
 #include "planner_handler.hpp"
+#include "planner/plannerSequences.hpp"
 
 #include <libmove3d/include/Graphic-pkg.h>
 
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include <cmath>
 #include <time.h>
 #include <sstream>
@@ -56,11 +58,13 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
 {
     ui_->setupUi(this);
 
-    connect(ui_->pushButtonStart,SIGNAL(clicked()),this,SLOT(start()));
+    connect(ui_->pushButtonStart,SIGNAL(clicked()), this,SLOT(start()));
+    connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
     connect(this,  SIGNAL(selectedPlanner(QString)),global_plannerHandler, SLOT(startPlanner(QString)));
 
     joint_state_rate_ = 30;
     update_robot_ = false;
+    robot_ = NULL;
 }
 
 Move3DRosGui::~Move3DRosGui()
@@ -70,16 +74,16 @@ Move3DRosGui::~Move3DRosGui()
 
 void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config)
 {
-     //cout << __PRETTY_FUNCTION__ << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
 
-    if( joint_names_.empty() ){
+    if( active_joint_names_.empty() ){
         ROS_ERROR("Joint names not set");
         return;
     }
 
     // Extract joint positions in the right order
     if (joint_config->joint_names.size() != joint_config->actual.positions.size() ||
-            joint_config->joint_names.size() != joint_names_.size() )
+            joint_config->joint_names.size() != active_joint_names_.size() )
     {
         ROS_ERROR("Malformed configuration update - skipping update");
         return;
@@ -91,7 +95,7 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
     }
 
     // Set the config
-    Eigen::VectorXd new_arm_config(joint_names_.size());
+    Eigen::VectorXd new_arm_config( active_joint_names_.size() );
 
     try
     {
@@ -100,7 +104,7 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
             arm_configuration[joint_config->joint_names[idx]] = joint_config->actual.positions[idx];
 
         for (size_t idx = 0; idx < new_arm_config.size(); idx ++)
-            new_arm_config[idx] = arm_configuration[joint_names_[idx]];
+            new_arm_config[idx] = arm_configuration[active_joint_names_[idx]];
     }
     catch(...)
     {
@@ -118,7 +122,7 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
         return;
     }
 
-    q_cur_->setFromEigenVector( new_arm_config, dof_ids_ );
+    q_cur_->setFromEigenVector( new_arm_config, active_dof_ids_ );
 
     if( update_robot_ )
     {
@@ -132,6 +136,56 @@ void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryController
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
+void Move3DRosGui::setState(bool online)
+{
+    if( online )
+    {
+        ui_->labelOnline->setText(QApplication::translate("MainWindow", "<html><head/><body><p><span style=\" font-size:18pt; color:#ff0000;\">ONLINE</span></p></body></html>",
+                                                          0, QApplication::UnicodeUTF8));
+    }
+    else
+    {
+        ui_->labelOnline->setText(QApplication::translate("MainWindow", "<html><head/><body><p><span style=\" font-size:18pt; color:#0cff00;\">OFFLINE</span></p></body></html>",
+                                                          0, QApplication::UnicodeUTF8));
+    }
+
+}
+
+void Move3DRosGui::loadMotions()
+{
+    std::string folder = std::string(getenv("HOME_MOVE3D")) + "/../move3d-launch/launch_files";
+    //    loadMotions( folder );
+
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::loadMotions, this, folder ) );
+    emit(selectedPlanner(QString("BoostFunction")));
+}
+
+void Move3DRosGui::loadMotions(std::string folder)
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    std::stringstream ss;
+    std::vector<std::string> files;
+
+    int nb_trajs = 12;
+    for(int i=0; i<nb_trajs; i++ )
+    {
+        ss.str("");
+        ss << "trajectory" << std::setw(3) << std::setfill( '0' ) << i << ".traj";
+        files.push_back( folder + "/" + ss.str() );
+        cout << "add file : " << files[i] << endl;
+    }
+
+    if( robot_ != NULL )
+    {
+        Move3D::SequencesPlanners pool( robot_ );
+        pool.loadTrajsFromFile( files );
+        pool.playTrajs();
+
+        move3d_trajs_ = pool.getBestTrajs();
+    }
+}
+
 void Move3DRosGui::playElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config)
 {
     cout << __PRETTY_FUNCTION__ << endl;
@@ -141,7 +195,7 @@ void Move3DRosGui::playElementaryMotion(const std::vector<double>& current_confi
     double execution_timestep = 5.0;
 
     // Populate command
-    command.trajectory.joint_names = joint_names_;
+    command.trajectory.joint_names = active_joint_names_;
     command.trajectory.header.stamp = ros::Time::now();
 
     // Populate target point
@@ -173,23 +227,45 @@ void Move3DRosGui::initPr2()
         return;
     }
 
-    joint_names_.resize(7);
-    joint_names_[0] = "r_shoulder_pan_joint";
-    joint_names_[1] = "r_shoulder_lift_joint";
-    joint_names_[2] = "r_upper_arm_roll_joint";
-    joint_names_[3] = "r_elbow_flex_joint";
-    joint_names_[4] = "r_forearm_roll_joint";
-    joint_names_[5] = "r_wrist_flex_joint";
-    joint_names_[6] = "r_wrist_roll_joint";
+    right_arm_joint_names_.resize(7);
+    right_arm_joint_names_[0] = "r_shoulder_pan_joint";
+    right_arm_joint_names_[1] = "r_shoulder_lift_joint";
+    right_arm_joint_names_[2] = "r_upper_arm_roll_joint";
+    right_arm_joint_names_[3] = "r_elbow_flex_joint";
+    right_arm_joint_names_[4] = "r_forearm_roll_joint";
+    right_arm_joint_names_[5] = "r_wrist_flex_joint";
+    right_arm_joint_names_[6] = "r_wrist_roll_joint";
 
-    dof_ids_.resize(7);
-    dof_ids_[0] = robot_->getJoint("right-Arm1")->getIndexOfFirstDof();
-    dof_ids_[1] = robot_->getJoint("right-Arm2")->getIndexOfFirstDof();
-    dof_ids_[2] = robot_->getJoint("right-Arm3")->getIndexOfFirstDof();
-    dof_ids_[3] = robot_->getJoint("right-Arm4")->getIndexOfFirstDof();
-    dof_ids_[4] = robot_->getJoint("right-Arm5")->getIndexOfFirstDof();
-    dof_ids_[5] = robot_->getJoint("right-Arm6")->getIndexOfFirstDof();
-    dof_ids_[6] = robot_->getJoint("right-Arm7")->getIndexOfFirstDof();
+    left_arm_joint_names_.resize(7);
+    left_arm_joint_names_[0] = "l_shoulder_pan_joint";
+    left_arm_joint_names_[1] = "l_shoulder_lift_joint";
+    left_arm_joint_names_[2] = "l_upper_arm_roll_joint";
+    left_arm_joint_names_[3] = "l_elbow_flex_joint";
+    left_arm_joint_names_[4] = "l_forearm_roll_joint";
+    left_arm_joint_names_[5] = "l_wrist_flex_joint";
+    left_arm_joint_names_[6] = "l_wrist_roll_joint";
+
+    right_arm_dof_ids_.resize(7);
+    right_arm_dof_ids_[0] = robot_->getJoint("right-Arm1")->getIndexOfFirstDof();
+    right_arm_dof_ids_[1] = robot_->getJoint("right-Arm2")->getIndexOfFirstDof();
+    right_arm_dof_ids_[2] = robot_->getJoint("right-Arm3")->getIndexOfFirstDof();
+    right_arm_dof_ids_[3] = robot_->getJoint("right-Arm4")->getIndexOfFirstDof();
+    right_arm_dof_ids_[4] = robot_->getJoint("right-Arm5")->getIndexOfFirstDof();
+    right_arm_dof_ids_[5] = robot_->getJoint("right-Arm6")->getIndexOfFirstDof();
+    right_arm_dof_ids_[6] = robot_->getJoint("right-Arm7")->getIndexOfFirstDof();
+
+    left_arm_dof_ids_.resize(7);
+    left_arm_dof_ids_[0] = robot_->getJoint("left-Arm1")->getIndexOfFirstDof();
+    left_arm_dof_ids_[1] = robot_->getJoint("left-Arm2")->getIndexOfFirstDof();
+    left_arm_dof_ids_[2] = robot_->getJoint("left-Arm3")->getIndexOfFirstDof();
+    left_arm_dof_ids_[3] = robot_->getJoint("left-Arm4")->getIndexOfFirstDof();
+    left_arm_dof_ids_[4] = robot_->getJoint("left-Arm5")->getIndexOfFirstDof();
+    left_arm_dof_ids_[5] = robot_->getJoint("left-Arm6")->getIndexOfFirstDof();
+    left_arm_dof_ids_[6] = robot_->getJoint("left-Arm7")->getIndexOfFirstDof();
+
+    // SET THE ACTIVE ARM
+    active_joint_names_ = right_arm_joint_names_;
+    active_dof_ids_     = right_arm_dof_ids_;
 
     q_cur_ = robot_->getInitPos();
 }
@@ -211,6 +287,8 @@ void Move3DRosGui::run()
         return;
     }
 
+    setState(true);
+
     int argc = 0;
     char **argv = NULL;
     ros::init(argc, argv, "move3d_pr2");
@@ -231,6 +309,8 @@ void Move3DRosGui::run()
 
 void Move3DRosGui::start()
 {
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::run, this ) );
-    emit(selectedPlanner(QString("BoostFunction")));
+    boost::thread t( boost::bind( &Move3DRosGui::run, this ) );
+    //    t.join();
+    //global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::run, this ) );
+    //emit(selectedPlanner(QString("BoostFunction")));
 }
