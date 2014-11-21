@@ -61,13 +61,15 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
 {
     ui_->setupUi(this);
 
-    connect(ui_->pushButtonStart,SIGNAL(clicked()), this,SLOT(start()));
+    connect(ui_->pushButtonStart ,SIGNAL(clicked()), this,SLOT(start()));
     connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
+    connect(ui_->pushButtonExecTrajs,  SIGNAL(clicked()), this, SLOT(executeLoadedMotions()));
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 
     // Set robot structure to 0
     robot_ = NULL;
+    move3d_trajs_.clear();
 
     // Set all active joint ids and names to 0
     active_joint_names_.clear();
@@ -254,6 +256,46 @@ void Move3DRosGui::loadMotions(std::string folder)
     }
 }
 
+void Move3DRosGui::executeLoadedMotions()
+{
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::executeLoadedMotionsThread, this ) );
+    emit(selectedPlanner(QString("BoostFunction")));
+}
+
+void Move3DRosGui::executeLoadedMotionsThread()
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    if(move3d_trajs_.empty() )
+    {
+        ROS_ERROR( "No loaded trajectory" );
+        return;
+    }
+    if( !move3d_trajs_[0].getUseTimeParameter() )
+    {
+        ROS_ERROR( "Move3D traj is not a time parametrized trajectory" );
+        return;
+    }
+
+    executeElementaryMotion( move3d_trajs_[0].configAtTime(0.0) );
+
+    for(size_t i=0; i<move3d_trajs_.size(); i++ )
+    {
+        Move3D::confPtr_t q_cur = q_cur_->copy();
+
+//        Eigen::VectorXd q_1 = q_cur->getEigenVector( active_dof_ids_ );
+//        Eigen::VectorXd q_2 = move3d_trajs_[i].configAtTime(0.0)->getEigenVector( active_dof_ids_ );
+
+//        if( (q_1 - q_2).norm() > 0.4 )
+//        {
+//            ROS_ERROR( "Move3D traj is not starting at proper config, dist : %f", (q_1 - q_2).norm() );
+//            return;
+//        }
+
+        executeMove3DTrajectory( move3d_trajs_[i] );
+    }
+}
+
 void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
 {
     cout << __PRETTY_FUNCTION__ << endl;
@@ -266,21 +308,21 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
 
     pr2_controllers_msgs::JointTrajectoryGoal command;
 
-    double dt = .10; // 100 ms
-
     // Populate command
     command.trajectory.joint_names = active_joint_names_;
     command.trajectory.header.stamp = ros::Time::now();
 
-
+    // Start trajectory
     double t = 0.0;
     double time_length = traj.getTimeLength();
+    double dt = .2; // 100 ms (10 Hz)
 
     std::vector<double> config(active_dof_ids_.size());
 
     while( true )
     {
         Move3D::confPtr_t q = traj.configAtTime( t );
+
 
         // Get configuration
         for( int j=0; j<int(active_dof_ids_.size()); j++ )
@@ -289,7 +331,7 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
         // Populate points
         trajectory_msgs::JointTrajectoryPoint point;
         point.positions = config;
-        point.velocities.resize( point.positions.size(), 0.0 );
+        point.velocities.clear(); // Clear for interpolation
 
         // Set the execution time
         point.time_from_start = ros::Duration( t );
@@ -305,15 +347,36 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
 
     // Command the arm
     active_arm_client_->sendGoal( command );
+
+    // Wait until end of execution
+    while(!active_arm_client_->getState().isDone() && ros::ok())
+    {
+        usleep(50000);
+    }
 }
 
-void Move3DRosGui::executeElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config)
+void Move3DRosGui::executeElementaryMotion( Move3D::confPtr_t q_target )
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
+    Move3D::confPtr_t q_cur = q_cur_->copy();
+
+
+    // Get current configuration
+    std::vector<double> config_current(active_dof_ids_.size());
+    for( int j=0; j<int(active_dof_ids_.size()); j++ )
+        config_current[j] = (*q_cur)[ active_dof_ids_[j] ];
+
+    // Get target configuration
+    std::vector<double> config_target(active_dof_ids_.size());
+    for( int j=0; j<int(active_dof_ids_.size()); j++ )
+        config_target[j] = (*q_target)[ active_dof_ids_[j] ];
+
+    cout << "Filling command" << endl;
+
     pr2_controllers_msgs::JointTrajectoryGoal command;
 
-    double execution_timestep = 5.0;
+    double execution_timestep = 10.0;
 
     // Populate command
     command.trajectory.joint_names = active_joint_names_;
@@ -321,22 +384,30 @@ void Move3DRosGui::executeElementaryMotion(const std::vector<double>& current_co
 
     // Populate target point
     trajectory_msgs::JointTrajectoryPoint start_point;
-    start_point.positions = current_config;
+    start_point.positions = config_current;
     start_point.velocities.resize(start_point.positions.size(), 0.0);
     start_point.time_from_start = ros::Duration(0.0);
 
     // Populate target point
     trajectory_msgs::JointTrajectoryPoint target_point;
-    target_point.positions = target_config;
+    target_point.positions = config_target;
     target_point.velocities.resize(target_point.positions.size(), 0.0);
     // Set the execution time
     target_point.time_from_start = ros::Duration(execution_timestep);
+
+    cout << "sending command" << endl;
 
     // Add point
     command.trajectory.points.push_back(target_point);
 
     // Command the arm
     active_arm_client_->sendGoal(command);
+
+    // Wait until end of execution
+    while(!active_arm_client_->getState().isDone() && ros::ok())
+    {
+        usleep(50000);
+    }
 }
 
 void Move3DRosGui::setActiveArm(arm_t arm)
@@ -349,12 +420,14 @@ void Move3DRosGui::setActiveArm(arm_t arm)
         active_joint_names_ = left_arm_joint_names_;
         active_dof_ids_     = left_arm_dof_ids_;
         active_state_topic_name_ = left_arm_topic_name_;
+        active_arm_client_ = left_arm_client_;
     }
     else
     {
         active_joint_names_ = right_arm_joint_names_;
         active_dof_ids_     = right_arm_dof_ids_;
         active_state_topic_name_ = right_arm_topic_name_;
+        active_arm_client_ = right_arm_client_;
     }
 }
 

@@ -319,8 +319,9 @@ ENDIF()
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
+
 include_directories(include)
-include_directories(/home/jmainpri/catkin_ws_move3d/build/move3d_ros) # TODO FIX remove
+include_directories($ENV{HOME}/catkin_ws/build/move3d_ros) # TODO FIX remove
 
 include_directories(
   ${catkin_INCLUDE_DIRS}

@@ -55,8 +55,9 @@ public:
     void run();
     void initPr2();
 
-    void executeElementaryMotion(const std::vector<double>& current_config, const std::vector<double>& target_config);
+    void executeElementaryMotion(Move3D::confPtr_t q_target);
     void executeMove3DTrajectory(const Move3D::Trajectory& traj);
+    void executeLoadedMotionsThread();
     void loadMotions(std::string folder);
     void setActiveArm(arm_t arm);
 
@@ -66,6 +67,7 @@ public slots:
     void start();
     void setState(module_state_t state);
     void loadMotions();
+    void executeLoadedMotions();
 
 
 signals:
