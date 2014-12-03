@@ -45,6 +45,7 @@
 #include "qtOpenGL/glwidget.hpp"
 
 #include <libmove3d/include/Graphic-pkg.h>
+#include <libmove3d/include/Util-pkg.h>
 
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
@@ -323,10 +324,20 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
     {
         Move3D::confPtr_t q = traj.configAtTime( t );
 
-
         // Get configuration
-        for( int j=0; j<int(active_dof_ids_.size()); j++ )
-            config[j] = (*q)[ active_dof_ids_[j] ];
+        for( int i=0; i<int(active_dof_ids_.size()); i++ )
+            config[i] = (*q)[ active_dof_ids_[i] ];
+
+        // Check configuration
+        if( !command.trajectory.points.empty() )
+            for( int i=0; i<int(config.size()); i++)
+            {
+                double diff = config[i] - command.trajectory.points.back().positions[i];
+                double error = std::fabs( diff_angle( config[i] , command.trajectory.points.back().positions[i] ) - diff );
+                if( error > 1e-6 ){
+                    cout << "error at " << i << " by " << error << " in " << __PRETTY_FUNCTION__ << endl;
+                }
+            }
 
         // Populate points
         trajectory_msgs::JointTrajectoryPoint point;
