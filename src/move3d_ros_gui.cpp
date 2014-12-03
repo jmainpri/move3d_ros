@@ -222,7 +222,7 @@ void Move3DRosGui::setState(module_state_t state)
 
 void Move3DRosGui::loadMotions()
 {
-    std::string folder = std::string(getenv("HOME_MOVE3D")) + "/trajs";
+    std::string folder = std::string(getenv("HOME_MOVE3D")) + "/trajs/aterm_sequence/";
 
     // std::string folder = std::string(getenv("HOME_MOVE3D")) + "/../move3d-launch/launch_files";
     //    loadMotions( folder );
@@ -238,7 +238,8 @@ void Move3DRosGui::loadMotions(std::string folder)
     std::stringstream ss;
     std::vector<std::string> files;
 
-    int nb_trajs = 12;
+    int nb_trajs = 19;
+
     for(int i=0; i<nb_trajs; i++ )
     {
         ss.str("");
@@ -299,7 +300,9 @@ void Move3DRosGui::executeLoadedMotionsThread()
 
 void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
 {
+    cout << " **************************************"<< endl;
     cout << __PRETTY_FUNCTION__ << endl;
+    cout << " **************************************"<< endl;
 
     if( !traj.getUseTimeParameter() )
     {
@@ -328,14 +331,21 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
         for( int i=0; i<int(active_dof_ids_.size()); i++ )
             config[i] = (*q)[ active_dof_ids_[i] ];
 
-        // Check configuration
+        // Check configuration (smooth trajectory)
         if( !command.trajectory.points.empty() )
-            for( int i=0; i<int(config.size()); i++)
+            for( int i=6; i<int(config.size()); i++)
             {
-                double diff = config[i] - command.trajectory.points.back().positions[i];
-                double error = std::fabs( diff_angle( config[i] , command.trajectory.points.back().positions[i] ) - diff );
-                if( error > 1e-6 ){
-                    cout << "error at " << i << " by " << error << " in " << __PRETTY_FUNCTION__ << endl;
+                double previous = command.trajectory.points.back().positions[i];
+                double diff = previous - config[i];
+                double angle_diff = diff_angle( config[i], previous );
+                while( std::fabs( angle_diff - diff ) > 1e-12 )
+                {
+                    if( diff > 0 )
+                        config[i] += 2*M_PI;
+                    else
+                        config[i] -= 2*M_PI;
+                    diff = previous - config[i];
+                    angle_diff = diff_angle( config[i], previous );
                 }
             }
 
