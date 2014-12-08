@@ -319,7 +319,7 @@ void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
     // Start trajectory
     double t = 0.0;
     double time_length = traj.getTimeLength();
-    double dt = .2; // 100 ms (10 Hz)
+    double dt = .10; // 100 ms (10 Hz)
 
     std::vector<double> config(active_dof_ids_.size());
 
