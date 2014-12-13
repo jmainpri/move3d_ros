@@ -29,6 +29,8 @@
 #include "move3d_ros_gui.hpp"
 #include "ui_move3d_ros_gui.h"
 
+#include "move3d_ros_human.hpp"
+
 #include <std_msgs/String.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
 #include <trajectory_msgs/JointTrajectory.h>
@@ -452,6 +454,32 @@ void Move3DRosGui::setActiveArm(arm_t arm)
     }
 }
 
+void Move3DRosGui::startHumanTracking()
+{
+    int argc = 0;
+    char **argv = NULL;
+    ros::init( argc, argv, "move3d_pr2", ros::init_options::NoSigintHandler );
+    nh_ = new ros::NodeHandle();
+
+    // Set module state
+    setState( online );
+
+    // Update human joint angles
+    Move3DRosHuman human;
+    ros::Subscriber sub = human.subscribe_to_joint_angles(nh_);
+    human.setUpdate(true);
+
+    // Spin node
+    ros::Rate spin_rate(joint_state_rate_);
+    while (ros::ok())
+    {
+        // Process callbacks
+        ros::spinOnce();
+        // Spin
+        spin_rate.sleep();
+    }
+}
+
 void Move3DRosGui::run()
 {
     cout << __PRETTY_FUNCTION__ << endl;
@@ -497,6 +525,12 @@ void Move3DRosGui::run()
     // Set module state
     setState( online );
 
+
+    // Update human joint angles
+    Move3DRosHuman human;
+    human.setUpdate(true);
+    human.subscribe_to_joint_angles(nh_);
+
     // Spin node
     ros::Rate spin_rate(joint_state_rate_);
     while (ros::ok())
@@ -510,7 +544,12 @@ void Move3DRosGui::run()
 
 void Move3DRosGui::start()
 {
-    boost::thread t( boost::bind( &Move3DRosGui::run, this ) );
+
+    cout << __PRETTY_FUNCTION__ << endl;
+//    boost::thread t( boost::bind( &Move3DRosGui::run, this ) );
+
+    boost::thread t( boost::bind( &Move3DRosGui::startHumanTracking, this ) );
+
 
 //    while( true )
 //    {

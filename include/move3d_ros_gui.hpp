@@ -55,6 +55,8 @@ public:
     void run();
     void initPr2();
 
+    void startHumanTracking();
+
     void executeElementaryMotion(Move3D::confPtr_t q_target);
     void executeMove3DTrajectory(const Move3D::Trajectory& traj);
     void executeLoadedMotionsThread();

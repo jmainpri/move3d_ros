@@ -25,51 +25,46 @@
  *
  *                                               Jim Mainprice Tue 27 May 2014
  */
-#ifndef MOVE3D_ROS_HPP
-#define MOVE3D_ROS_HPP
+#ifndef MOVE3D_ROS_HUMAN_HPP
+#define MOVE3D_ROS_HUMAN_HPP
 
-#include <QWidget>
+#include "qtLibrary.hpp"
 
-#include <sensor_msgs/JointrState.h>
+#include <sensor_msgs/JointState.h>
 #include <ros/ros.h>
 
 #include "API/Device/robot.hpp"
 
-class Move3DRosHuman
+class Move3DRosHuman : public QObject
 {
     Q_OBJECT
     
 public:
 
-    explicit Move3DRosHuman(QWidget *parent = 0);
+    Move3DRosHuman(QWidget *parent = 0);
     ~Move3DRosHuman();
 
-    void run();
-    void initPr2();
-
-    void executeElementaryMotion(Move3D::confPtr_t q_target);
-    void executeMove3DTrajectory(const Move3D::Trajectory& traj);
-    void executeLoadedMotionsThread();
-    void loadMotions(std::string folder);
-    void setActiveArm(arm_t arm);
+    bool initHuman();
+    void setUpdate(bool update) { update_robot_= update; }
+    ros::Subscriber subscribe_to_joint_angles(ros::NodeHandle* nh);
 
 signals:
 
-    void selectedPlanner(QString);
     void drawAllWinActive();
-    
 
 private:
 
     Move3D::Robot* robot_;
     Move3D::confPtr_t q_cur_;
+    std::vector<std::string> joint_names_;
+    std::map<std::string,int> joint_map_;
+    int draw_rate_;
     bool update_robot_;
-    std::vector<Move3D::Trajectory> move3d_trajs_;
-
-    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config,
-                       std::vector<std::string> joint_names,
-                       std::vector<int> dof_ids);
+    bool joint_state_received_;
+    std::string topic_name_;
+    ros::NodeHandle* nh_;
+    void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
 
 };
 
-#endif // MOVE3D_ROS_HPP
+#endif // MOVE3D_ROS_HUMAN_HPP

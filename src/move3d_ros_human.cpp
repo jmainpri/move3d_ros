@@ -36,6 +36,8 @@
 #include "planner_handler.hpp"
 #include "planner/plannerSequences.hpp"
 
+#include "qtMainInterface/mainwindow.hpp"
+
 #include <libmove3d/include/Graphic-pkg.h>
 #include <libmove3d/include/Util-pkg.h>
 
@@ -48,79 +50,107 @@
 using std::cout;
 using std::endl;
 
-Move3DRosHuman::Move3DRosHuman(QWidget *parent) :
-    QWidget(parent),
-    ui_(new Ui::Move3DRosHuman)
+Move3DRosHuman::Move3DRosHuman(QWidget *parent)
 {
-    ui_->setupUi(this);
-
     // Set robot structure to 0
     robot_ = NULL;
-    move3d_trajs_.clear();
 
-    // Set all active joint ids and names to 0
-    active_joint_names_.clear();
-    active_dof_ids_.clear();
-
-    joint_state_rate_ = 30;
+//    joint_state_rate_ = 30;
     joint_state_received_ = 0;
     draw_rate_ = 10; // draws only the 10th time
 
+    topic_name_ = "/mocap_human_joint_state";
     update_robot_ = false; // updates from sensor reading
+
+    connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 }
 
 Move3DRosHuman::~Move3DRosHuman()
 {
-    delete ui_;
+
 }
 
-void Move3DRosHuman::initHuman()
+bool Move3DRosHuman::initHuman()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
+    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("HUMAN");
     if( robot_ == NULL ){
         ROS_ERROR("No robot named pr2 in Move3D");
-        return;
+        return false;
     }
 
-    robot_ = global_Project->getActiveScene()->getRobotByNameContaining("HUMAN");
+    joint_names_.clear();
+    for(int i=0;i<robot_->getJoints().size();i++){
+        joint_names_.push_back( robot_->getJoint(i)->getName() );
+    }
+
+    joint_map_.clear();
+    for(int i=0;i<joint_names_.size();i++){
+        Move3D::Joint* joint = robot_->getJoint(i);
+        joint_map_[ joint->getName() ] = joint->getIndexOfFirstDof();
+    }
+
     q_cur_ = robot_->getInitPos();
+    return true;
 }
 
-void Move3DRosHuman::GetJointState(sensor_msgs::JointState::ConstPtr joint_config )
+static int joint_state_received=0;
+
+void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_config )
 {
-    //    cout << __PRETTY_FUNCTION__ << endl;
+//    cout << __PRETTY_FUNCTION__ << endl;
 
-    if( joint_names.empty() ){
-        ROS_ERROR("Active joint names not set");
+    if( joint_names_.empty() ){
+        ROS_ERROR("No human joint names");
         return;
     }
 
+    // TODO fix this
     // Extract joint positions in the right order
-    if (    joint_config->joint_names.size() != joint_config->actual.positions.size() ||
-            joint_config->joint_names.size() != joint_names.size() ||
-            joint_config->joint_names.size() != dof_ids.size() )
-    {
-        ROS_ERROR("Malformed configuration update - skipping update");
-        return;
-    }
+//    if ( joint_config->name.size() != joint_names_.size() )
+//    {
+//        for (size_t idx=0; idx<joint_config->name.size(); idx ++)
+//            cout << "joint_config->name[idx] : " << joint_config->name[idx] << endl;
+
+//        for (size_t idx=0; idx<joint_names_.size(); idx ++)
+//            cout << "joint_names_[idx] : " << joint_names_[idx] << endl;
+
+//        ROS_ERROR("Malformed configuration update - skipping update");
+//        return;
+//    }
 
     if( robot_ == NULL ){
-        ROS_ERROR("No Move3D robot selected");
+        ROS_ERROR("No Move3D human selected");
         return;
     }
 
     // Set the config
-    Eigen::VectorXd new_arm_config( joint_names.size() );
+    Eigen::VectorXd new_arm_config( joint_names_.size() );
+    std::vector<int> dof_ids( joint_names_.size() );
 
     try
     {
-        std::map<std::string, double> arm_configuration;
-        for (size_t idx = 0; idx < joint_config->joint_names.size(); idx ++)
-            arm_configuration[joint_config->joint_names[idx]] = joint_config->actual.positions[idx];
+        for (size_t idx=0; idx<joint_config->name.size(); idx ++)
+        {
+            std::string name        = joint_config->name[idx];
+            new_arm_config[idx]     = joint_config->position[idx];
 
-        for (size_t idx = 0; idx < new_arm_config.size(); idx ++)
-            new_arm_config[idx] = arm_configuration[joint_names[idx]];
+            if( name == "PelvisTransX" )
+                dof_ids[idx] = 6;
+            else if( name == "PelvisTransY" )
+                dof_ids[idx] = 7;
+            else if( name == "PelvisTransZ" )
+                dof_ids[idx] = 8;
+            else if( name == "PelvisRotX" )
+                dof_ids[idx] = 9;
+            else if( name == "PelvisRotY" )
+                dof_ids[idx] = 10;
+            else if( name == "PelvisRotZ" )
+                dof_ids[idx] = 11;
+            else
+                dof_ids[idx] = joint_map_[name];
+        }
     }
     catch(...)
     {
@@ -140,11 +170,13 @@ void Move3DRosHuman::GetJointState(sensor_msgs::JointState::ConstPtr joint_confi
     {
         robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
 
+        joint_state_received += 1;
+
         // OPENGL DRAW
-        if( (++joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
+        if( (joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
         {
             emit(drawAllWinActive());
-            joint_state_received_ = 0;
+            joint_state_received = 0;
         }
     }
 
@@ -152,93 +184,21 @@ void Move3DRosHuman::GetJointState(sensor_msgs::JointState::ConstPtr joint_confi
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
-void Move3DRosHuman::setState(module_state_t state)
-{
-    if( state == online )
-    {
-        ui_->labelOnline->setText(QApplication::translate("MainWindow", "<html><head/><body><p><span style=\" font-size:18pt; color:#ff0000;\">ONLINE</span></p></body></html>",
-                                                          0, QApplication::UnicodeUTF8));
-    }
-    else
-    {
-        ui_->labelOnline->setText(QApplication::translate("MainWindow", "<html><head/><body><p><span style=\" font-size:18pt; color:#0cff00;\">OFFLINE</span></p></body></html>",
-                                                          0, QApplication::UnicodeUTF8));
-    }
-}
-
-void Move3DRosHuman::setActiveArm(arm_t arm)
-{
-    // SET THE ACTIVE ARM
-    arm_ = arm;
-
-    if( arm_ == left )
-    {
-        active_joint_names_ = left_arm_joint_names_;
-        active_dof_ids_     = left_arm_dof_ids_;
-        active_state_topic_name_ = left_arm_topic_name_;
-        active_arm_client_ = left_arm_client_;
-    }
-    else
-    {
-        active_joint_names_ = right_arm_joint_names_;
-        active_dof_ids_     = right_arm_dof_ids_;
-        active_state_topic_name_ = right_arm_topic_name_;
-        active_arm_client_ = right_arm_client_;
-    }
-}
-
-void Move3DRosHuman::run()
+ros::Subscriber Move3DRosHuman::subscribe_to_joint_angles(ros::NodeHandle* nh)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
-    if( robot_ == NULL ){
-        ROS_ERROR("No ROBOT in Move3D");
-        return;
+    if(!initHuman())
+    {
+        cout << "Error initializing human" << endl;
+        return ros::Subscriber();
     }
 
-    if( robot_->getName().find("PR2") != std::string::npos )
-        initPr2();
-    else {
-        ROS_ERROR("No robot named PR2 in Move3D");
-        return;
-    }
 
-    int argc = 0;
-    char **argv = NULL;
-    ros::init( argc, argv, "move3d_pr2", ros::init_options::NoSigintHandler );
-    nh_ = new ros::NodeHandle();
+    nh_ = nh;
 
-    // Setup trajectory controller interface
-    right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/r_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for right arm controllers to come up...");
-    right_arm_client_->waitForServer();
-
-    left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/l_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for left arm controllers to come up...");
-    left_arm_client_->waitForServer();
-
-    setActiveArm( right );
+    cout << "Subscribe to topic : " << topic_name_ << endl;
 
     // Subscribe to get current posture
-    ros::Subscriber sub_r = nh_->subscribe<pr2_controllers_msgs::JointTrajectoryControllerState>( right_arm_topic_name_, 1,
-                                                                                                  boost::bind( &Move3DRosHuman::GetJointState, this, _1,
-                                                                                                               right_arm_joint_names_, right_arm_dof_ids_ ) );
-
-    ros::Subscriber sub_l = nh_->subscribe<pr2_controllers_msgs::JointTrajectoryControllerState>( left_arm_topic_name_, 1,
-                                                                                                  boost::bind( &Move3DRosHuman::GetJointState, this, _1,
-                                                                                                               left_arm_joint_names_, left_arm_dof_ids_ ) );
-
-    // Set module state
-    setState( online );
-
-    // Spin node
-    ros::Rate spin_rate(joint_state_rate_);
-    while (ros::ok())
-    {
-        // Process callbacks
-        ros::spinOnce();
-        // Spin
-        spin_rate.sleep();
-    }
+    return nh_->subscribe<sensor_msgs::JointState>( topic_name_, 1, boost::bind( &Move3DRosHuman::GetJointState, this, _1) );
 }

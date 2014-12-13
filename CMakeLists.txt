@@ -243,7 +243,7 @@ IF(QT_LIBRARY)
   message(${Move3DGUI_QT_UI_HEADERS})
 
   # Qt4 files that need to be preprocessed
-  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp include/move3d_ros_gui.hpp)
+  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp include/move3d_ros_gui.hpp include/move3d_ros_human.hpp)
 
 
 ENDIF(QT_LIBRARY)
