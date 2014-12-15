@@ -95,6 +95,11 @@ bool Move3DRosHuman::initHuman()
     return true;
 }
 
+Move3D::confPtr_t Move3DRosHuman::get_current_conf()
+{
+    // TODO make thread safe get config
+}
+
 static int joint_state_received=0;
 
 void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_config )

@@ -270,7 +270,7 @@ void Move3DRosGui::executeLoadedMotionsThread()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    if(move3d_trajs_.empty() )
+    if( move3d_trajs_.empty() )
     {
         ROS_ERROR( "No loaded trajectory" );
         return;

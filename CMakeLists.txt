@@ -243,7 +243,10 @@ IF(QT_LIBRARY)
   message(${Move3DGUI_QT_UI_HEADERS})
 
   # Qt4 files that need to be preprocessed
-  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp include/move3d_ros_gui.hpp include/move3d_ros_human.hpp)
+  QT4_WRAP_CPP(Move3DGUI_QT_MOC include/move3d_ros_node.hpp 
+                                include/move3d_ros_gui.hpp 
+                                include/move3d_ros_human.hpp
+                                include/move3d_ros_replanning.hpp)
 
 
 ENDIF(QT_LIBRARY)
@@ -331,7 +334,7 @@ include_directories(
 ## Declare a cpp library
 # add_library(move3d_ros src/${PROJECT_NAME}/move3d_ros.cpp )
 
-add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp src/move3d_ros_human.cpp ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS})
+add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp src/move3d_ros_human.cpp src/move3d_ros_replanning.cpp ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS})
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${LIBS})
 

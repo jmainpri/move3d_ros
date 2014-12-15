@@ -25,8 +25,8 @@
  *
  *                                               Jim Mainprice Tue 27 May 2014
  */
-#ifndef MOVE3D_ROS_HUMAN_HPP
-#define MOVE3D_ROS_HUMAN_HPP
+#ifndef MOVE3D_ROS_REPLANNING_HPP
+#define MOVE3D_ROS_REPLANNING_HPP
 
 #include "qtLibrary.hpp"
 
@@ -35,37 +35,58 @@
 
 #include "API/Device/robot.hpp"
 
-class Move3DRosHuman : public QObject
+class Move3DRosReplanning : public QObject
 {
     Q_OBJECT
     
 public:
 
-    Move3DRosHuman(QWidget *parent = 0);
-    ~Move3DRosHuman();
+    Move3DRosReplanning(QWidget *parent = 0);
+    ~Move3DRosReplanning();
 
-    bool initHuman();
-    void setUpdate(bool update) { update_robot_= update; }
-    ros::Subscriber subscribe_to_joint_angles(ros::NodeHandle* nh);
-    Move3D::confPtr_t get_current_conf();
+    bool initReplanning(Move3D::Robot* robot, Move3D::confPtr_t q_goal);
+    bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct);
+    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time)> fct);
+
+    double run(Move3D::confPtr_t q_goal);
+
 
 signals:
 
+    void selectedPlanner(QString);
     void drawAllWinActive();
 
 private:
 
     Move3D::Robot* robot_;
-    Move3D::confPtr_t q_cur_;
-    std::vector<std::string> joint_names_;
-    std::map<std::string,int> joint_map_;
     int draw_rate_;
+    bool draw_execute_motion_;
     bool update_robot_;
     bool joint_state_received_;
-    std::string topic_name_;
-    ros::NodeHandle* nh_;
-    void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
 
+    // Replanning variables
+    bool end_planning_;
+    double time_step_; // Simulation step
+    double global_discretization_; // time betweem configurations (choose a number that divides the simulation time step)
+    double current_time_;
+    double time_along_current_path_;
+    double motion_duration_; // TODO REMOVE
+    double current_motion_duration_;
+    double current_discretization_; // TODO REMOVE
+
+    std::vector<Move3D::confPtr_t> context_;
+    Move3D::confPtr_t q_init_;
+    Move3D::confPtr_t q_goal_;
+    Move3D::Trajectory executed_trajectory_;
+    Move3D::Trajectory path_;
+    std::vector<int> active_dofs_; // TODO set this in constructor
+
+    boost::function<std::vector<Move3D::confPtr_t>(void)> get_context_;
+    boost::function<bool(const Move3D::Trajectory& trajectory, double time)> send_trajectory_;
+
+    bool runStandardStomp( int iter );
+    void execute(const Move3D::Trajectory& trajectory, bool to_end);
+    bool updateContext();
 };
 
-#endif // MOVE3D_ROS_HUMAN_HPP
+#endif // MOVE3D_ROS_REPLANNING_HPP
