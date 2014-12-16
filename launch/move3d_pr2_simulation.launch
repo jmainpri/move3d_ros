@@ -1,12 +1,16 @@
 <launch>
 
   <arg name="output" default="screen"/>
+  <arg name="draw_human_update" value="false" />
+  <arg name="run_replanning" value="true" />
 
-  <param name="draw_human_update" value="true" />
-
-  <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
-    <arg name="draw_human_update" value="true" />
-  </include>
+  <!-- broadcast the human joint angles -->
   <include file="$(find hrics_py)/launch/human_trajectory_publisher.launch" />
+
+  <!-- Run motion planning and GUI -->
+  <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
+    <arg name="draw_human_update" value="$(arg draw_human_update)" />
+    <arg name="run_replanning" value="$(arg run_replanning)" />
+  </include>
 
 </launch>

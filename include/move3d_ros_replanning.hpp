@@ -44,11 +44,13 @@ public:
     Move3DRosReplanning(QWidget *parent = 0);
     ~Move3DRosReplanning();
 
-    bool initReplanning(Move3D::Robot* robot, Move3D::confPtr_t q_goal);
-    bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct);
-    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time)> fct);
+    bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct) { get_context_ = fct; }
+    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time)> fct) { send_trajectory_ = fct; }
 
-    double run(Move3D::confPtr_t q_goal);
+
+    void run(Move3D::confPtr_t q_goal);
+
+    void setRobot(Move3D::Robot* robot) { robot_ = robot; }
 
 
 signals:
@@ -86,9 +88,11 @@ private:
     boost::function<std::vector<Move3D::confPtr_t>(void)> get_context_;
     boost::function<bool(const Move3D::Trajectory& trajectory, double time)> send_trajectory_;
 
+    void runReplanning(Move3D::confPtr_t q_goal);
     bool runStandardStomp( int iter );
     void execute( const Move3D::Trajectory& trajectory );
     bool updateContext();
+    bool initReplanning( Move3D::confPtr_t q_goal );
 };
 
 #endif // MOVE3D_ROS_REPLANNING_HPP

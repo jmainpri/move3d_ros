@@ -101,6 +101,7 @@ bool Move3DRosHuman::initHuman()
 Move3D::confPtr_t Move3DRosHuman::get_current_conf()
 {
     // TODO make thread safe get config
+    return robot_->getNewConfig();
 }
 
 //static int joint_state_received=0;

@@ -49,6 +49,7 @@ public:
     bool subscribe_to_joint_angles(ros::NodeHandle* nh);
     Move3D::confPtr_t get_current_conf();
 
+
 signals:
 
     void drawAllWinActive();

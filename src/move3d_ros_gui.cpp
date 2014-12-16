@@ -115,9 +115,74 @@ void Move3DRosGui::executeLoadedMotions()
     robot_backend_->executeLoadedMotions();
 }
 
+bool Move3DRosGui::sendTrajectory(const Move3D::Trajectory& trajectory, double time)
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+}
+
+std::vector<Move3D::confPtr_t> Move3DRosGui::getContext()
+{
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    std::vector<Move3D::confPtr_t> context;
+    Move3D::confPtr_t q_human_;
+
+    if( run_human_backend_ )
+    {
+        q_human_ = human_joint_state_->get_current_conf();
+    }
+    else
+    {
+        Move3D::Robot* human = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("HUMAN");
+        if( human == NULL )
+        {
+            ROS_ERROR("No ROBOT in Move3D");
+            return std::vector<Move3D::confPtr_t>();
+        }
+        else
+            q_human_ = human->getCurrentPos();
+    }
+
+    context.push_back( q_human_ );
+    return context;
+}
+
 void Move3DRosGui::runReplanning()
 {
-     cout << __PRETTY_FUNCTION__ << endl;
+    cout << __PRETTY_FUNCTION__ << endl;
+    replanning_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosReplanning>(new Move3DRosReplanning());
+
+    Move3D::Robot* robot = NULL;
+
+    if( run_robot_backend_ )
+
+        robot = robot_backend_->getRobot();
+    else
+        robot = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
+
+    if( robot == NULL )
+    {
+        ROS_ERROR("No ROBOT in Move3D");
+    }
+    else
+    {
+        cout << "Robot is : " << robot->getName() << endl;
+
+        Move3D::SequencesPlanners pool( robot );
+        std::vector<Move3D::confPtr_t> stored_configs = pool.getStoredConfig();
+
+        if( !stored_configs.empty() )
+        {
+            replanning_->setRobot( robot );
+            replanning_->setGetContextFunction( boost::bind( &Move3DRosGui::getContext, this) );
+            replanning_->setSendTrajectoryFunction( boost::bind( &Move3DRosGui::sendTrajectory, this, _1, _2) );
+            replanning_->run( stored_configs[0] );
+        }
+        else
+        {
+            ROS_ERROR("No stored configs for replanning");
+        }
+    }
 }
 
 void Move3DRosGui::runHumanTracking()
@@ -126,7 +191,7 @@ void Move3DRosGui::runHumanTracking()
 
     // Update human joint angles
     human_joint_state_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman>(new Move3DRosHuman());
-    human_joint_state_->subscribe_to_joint_angles(nh_);
+    human_joint_state_->subscribe_to_joint_angles( nh_ );
     human_joint_state_->setUpdate( draw_human_update_ );
 }
 
@@ -136,7 +201,7 @@ void Move3DRosGui::runPr2Backend()
 
     // Update robot joint angles
     robot_backend_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot>(new Move3DRosRobot());
-    robot_backend_->run_pr2_backend(nh_);
+    robot_backend_->run_pr2_backend( nh_ );
     robot_backend_->setUpdate( draw_robot_update_ );
 }
 
@@ -149,7 +214,7 @@ void Move3DRosGui::startNode()
 
     ros::NodeHandle nhp("~");
     nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(false));
-    nhp.param(std::string("run_pr2_backend"),    run_pr2_backend_,      bool(false));
+    nhp.param(std::string("run_robot_backend"),    run_robot_backend_,      bool(false));
     nhp.param(std::string("run_replanning"),     run_replanning_,       bool(false));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
@@ -157,10 +222,10 @@ void Move3DRosGui::startNode()
     // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
 
     ui_->checkBoxRunHumanBackEnd->setChecked(   run_human_backend_ );
-    ui_->checkBoxRunPr2Backend->setChecked(     run_pr2_backend_ );
+    ui_->checkBoxRunPr2Backend->setChecked(     run_robot_backend_ );
     ui_->checkBoxRunReplanning->setChecked(     run_replanning_ );
 
-    if( run_pr2_backend_ )
+    if( run_robot_backend_ )
         runPr2Backend();
 
     if( run_human_backend_ )
@@ -184,21 +249,8 @@ void Move3DRosGui::startNode()
     }
 }
 
-
 void Move3DRosGui::start()
 {
     cout << __PRETTY_FUNCTION__ << endl;
-
     boost::thread t( boost::bind( &Move3DRosGui::startNode, this ) );
-
-//    while( true )
-//    {
-//        usleep(200000);
-
-//        if(!ENV.getBool(Env::isRunning))
-//            global_w->getOpenGL()->updateGL();
-//    }
-
-//    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::run, this ) );
-//    emit(selectedPlanner(QString("BoostFunction")));
 }

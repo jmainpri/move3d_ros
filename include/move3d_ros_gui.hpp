@@ -61,6 +61,9 @@ public:
 
     void startNode();
 
+    std::vector<Move3D::confPtr_t> getContext();
+    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time);
+
 public slots:
 
     void start();
@@ -85,7 +88,7 @@ private:
     bool draw_robot_update_;
 
     bool run_human_backend_;
-    bool run_pr2_backend_;
+    bool run_robot_backend_;
     bool run_replanning_;
 
     MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot> robot_backend_;

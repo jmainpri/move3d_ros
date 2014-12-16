@@ -59,9 +59,9 @@ Move3DRosReplanning::Move3DRosReplanning(QWidget *parent)
     // Set robot structure to 0
     robot_ = NULL;
 
+    draw_joint_ = NULL;
     draw_rate_ = 10; // draws only the 10th time
     draw_execute_motion_ = false;
-    draw_joint_ = robot_->getJoint( 45 );
 
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
@@ -72,10 +72,8 @@ Move3DRosReplanning::~Move3DRosReplanning()
 
 }
 
-bool Move3DRosReplanning::initReplanning(Move3D::Robot* robot, Move3D::confPtr_t q_goal)
+bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal)
 {
-    robot_ = robot;
-
     if( robot_ == NULL ){
         ROS_ERROR("No Move3D robot selected");
         return false;
@@ -88,14 +86,17 @@ bool Move3DRosReplanning::initReplanning(Move3D::Robot* robot, Move3D::confPtr_t
 
     // GET STORED CONFIGURATIONS
     q_goal_ = q_goal->copy();
-    q_init_ = robot->getCurrentPos();
+    q_init_ = robot_->getCurrentPos();
+
+    // Set draw joint
+    draw_joint_ = robot_->getJoint( 45 );
 
     // INITIALIZE REPLANNING
     // current_human_traj_.resize( 0, 0 ); TODO add it for gathering data
     executed_trajectory_ = Move3D::Trajectory(robot_);
     executed_trajectory_.setUseTimeParameter( true );
     executed_trajectory_.setUseConstantTime( false );
-    executed_trajectory_.push_back(  q_init_, 0.0 );
+    executed_trajectory_.push_back( q_init_, 0.0 );
     current_time_ = 0.0;
     time_step_ = 0.1; // Simulation step
     global_discretization_ = 0.01; // time betweem configurations (choose a number that divides the simulation time step)
@@ -319,18 +320,22 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     cout << "End execute" << endl;
 }
 
-double Move3DRosReplanning::run(Move3D::confPtr_t q_goal)
+void Move3DRosReplanning::runReplanning( Move3D::confPtr_t q_goal )
 {
+    cout << __PRETTY_FUNCTION__ << endl;
+
+    initReplanning( q_goal );
+
     robot_->setAndUpdate( *q_init_ );
 
     for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
     {
-        runStandardStomp( i );
+//        runStandardStomp( i );
 
-        if( !PlanEnv->getBool(PlanParam::stopPlanner) )
-            execute( path_ );
+////        if( !PlanEnv->getBool(PlanParam::stopPlanner) )
+////            execute( path_ );
 
-        drawAllWinActive();
+        g3d_draw_allwin_active();
 
 //        cout << "wait for key" << endl;
 //        cin.ignore();
@@ -338,8 +343,13 @@ double Move3DRosReplanning::run(Move3D::confPtr_t q_goal)
 
     }
 
-    drawAllWinActive();
+    g3d_draw_allwin_active();
 
     cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
-    return 0.0;
+}
+
+void Move3DRosReplanning::run( Move3D::confPtr_t q_goal )
+{
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosReplanning::runReplanning, this, q_goal ) );
+    emit(selectedPlanner(QString("BoostFunction")));
 }

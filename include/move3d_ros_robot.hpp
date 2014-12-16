@@ -63,6 +63,8 @@ public:
     void loadMotions();
     void executeLoadedMotions();
 
+    Move3D::Robot* getRobot() { return robot_; }
+
 
 signals:
 
