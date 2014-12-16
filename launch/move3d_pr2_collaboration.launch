@@ -2,6 +2,7 @@
 
   <arg name="output" default="screen"/>
   <!-- <arg name="file" default="-f $(env HOME_MOVE3D)/../assets/Pr2/pr2.p3d" /> -->
+  <env name="HOME_MOVE3D" value="$(find move3d_ros)" />
 
   <!-- <arg name="file" default="-f $(find move3d_ros)/assets/Pr2/pr2.p3d" /> -->
   <arg name="file" default="-f $(find move3d_ros)/assets/Collaboration/HumanAndRobotTableMocap.p3d" />

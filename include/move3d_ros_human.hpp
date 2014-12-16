@@ -35,6 +35,8 @@
 
 #include "API/Device/robot.hpp"
 
+#include <boost/thread/mutex.hpp>
+
 class Move3DRosHuman : public QObject
 {
     Q_OBJECT
@@ -67,6 +69,7 @@ private:
     void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
     ros::Subscriber sub_;
     ros::NodeHandle* nh_;
+    boost::mutex io_mutex_;
 
 };
 

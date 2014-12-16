@@ -126,6 +126,8 @@ bool Move3DRosReplanning::updateContext()
 
 bool Move3DRosReplanning::runStandardStomp( int iter )
 {
+    cout << __PRETTY_FUNCTION__ << endl;
+
     int nb_way_points = 100;
     PlanEnv->setInt( PlanParam::nb_pointsOnTraj, nb_way_points );
 //    traj_optim_set_discretize( true );
@@ -157,12 +159,12 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     double traj_duration = current_motion_duration_ > 0.0 ? current_motion_duration_ : 0.1;
 
     // SET PLANNING STOP CONDITIONS
-    PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
-    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, traj_duration - 0.02 );
+//    PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
+//    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, traj_duration - 0.02 );
 
     traj_optim_set_use_iteration_limit(false);
-    // traj_optim_set_use_iteration_limit(true);
-    // traj_optim_set_iteration_limit( PlanEnv->getInt(PlanParam::stompMaxIteration) );
+    traj_optim_set_use_iteration_limit(true);
+    traj_optim_set_iteration_limit( PlanEnv->getInt(PlanParam::stompMaxIteration) );
 
     PlanEnv->setDouble( PlanParam::trajDuration, traj_duration  );
 
@@ -267,6 +269,7 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
 
 void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
 {
+    cout << __PRETTY_FUNCTION__ << endl;
 //    path.replaceP3dTraj();
 
     Move3D::confPtr_t q;
@@ -330,12 +333,14 @@ void Move3DRosReplanning::runReplanning( Move3D::confPtr_t q_goal )
 
     for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
     {
-//        runStandardStomp( i );
+        runStandardStomp( i );
 
-////        if( !PlanEnv->getBool(PlanParam::stopPlanner) )
-////            execute( path_ );
+        if( !PlanEnv->getBool(PlanParam::stopPlanner) )
+            execute( path_ );
 
         g3d_draw_allwin_active();
+
+        cout << "End of iteration " << i << endl;
 
 //        cout << "wait for key" << endl;
 //        cin.ignore();

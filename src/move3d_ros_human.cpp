@@ -100,6 +100,8 @@ bool Move3DRosHuman::initHuman()
 
 Move3D::confPtr_t Move3DRosHuman::get_current_conf()
 {
+    boost::mutex::scoped_lock lock(io_mutex_);
+
     // TODO make thread safe get config
     return robot_->getNewConfig();
 }
@@ -175,6 +177,7 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
 
     try
     {
+        boost::mutex::scoped_lock lock(io_mutex_);
         // for(int i=0; i<dof_ids.size(); i++)
         //    cout << "dof_ids[" << i << "]: " << dof_ids[i] << endl;
 
