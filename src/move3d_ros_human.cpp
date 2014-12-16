@@ -57,12 +57,13 @@ Move3DRosHuman::Move3DRosHuman(QWidget *parent)
 
 //    joint_state_rate_ = 30;
     joint_state_received_ = 0;
-    draw_rate_ = 10; // draws only the 10th time
+    draw_rate_ = 2; // draws only the 10th time
 
     topic_name_ = "/mocap_human_joint_state";
     update_robot_ = false; // updates from sensor reading
+    joint_names_.clear();
 
-    connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
+    connect(this,  SIGNAL(drawAllWinActive()), global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 }
 
 Move3DRosHuman::~Move3DRosHuman()
@@ -92,6 +93,8 @@ bool Move3DRosHuman::initHuman()
     }
 
     q_cur_ = robot_->getInitPos();
+
+    joint_state_received_ = 0;
     return true;
 }
 
@@ -100,11 +103,16 @@ Move3D::confPtr_t Move3DRosHuman::get_current_conf()
     // TODO make thread safe get config
 }
 
-static int joint_state_received=0;
+//static int joint_state_received=0;
 
 void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_config )
 {
 //    cout << __PRETTY_FUNCTION__ << endl;
+
+    if( robot_ == NULL ) {
+        ROS_ERROR("Human model not initialized");
+        return;
+    }
 
     if( joint_names_.empty() ){
         ROS_ERROR("No human joint names");
@@ -125,13 +133,8 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
 //        return;
 //    }
 
-    if( robot_ == NULL ){
-        ROS_ERROR("No Move3D human selected");
-        return;
-    }
-
     // Set the config
-    Eigen::VectorXd new_arm_config( joint_names_.size() );
+    Eigen::VectorXd new_arm_config( Eigen::VectorXd::Zero(joint_names_.size()) );
     std::vector<int> dof_ids( joint_names_.size() );
 
     try
@@ -169,41 +172,53 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
         return;
     }
 
-    q_cur_->setFromEigenVector( new_arm_config, dof_ids );
-
-    if( update_robot_ )
+    try
     {
-        robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
+        // for(int i=0; i<dof_ids.size(); i++)
+        //    cout << "dof_ids[" << i << "]: " << dof_ids[i] << endl;
 
-        joint_state_received += 1;
+        q_cur_->setFromEigenVector( new_arm_config, dof_ids );
 
-        // OPENGL DRAW
-        if( (joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
+        if( update_robot_ )
         {
-            emit(drawAllWinActive());
-            joint_state_received = 0;
+            robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
+
+            joint_state_received_ += 1;
+
+            // OPENGL DRAW
+            if( (joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
+            {
+                emit(drawAllWinActive());
+                joint_state_received_ = 0;
+            }
         }
     }
+    catch(...)
+    {
+        ROS_ERROR("Error setting human current config");
+        return;
+    }
+
+//    cout << "got joints" << endl;
+
 
     // Reset watchdog timer
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
-ros::Subscriber Move3DRosHuman::subscribe_to_joint_angles(ros::NodeHandle* nh)
+bool Move3DRosHuman::subscribe_to_joint_angles(ros::NodeHandle* nh)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
     if(!initHuman())
     {
-        cout << "Error initializing human" << endl;
+        ROS_ERROR("initializing humans");
         return ros::Subscriber();
     }
 
-
     nh_ = nh;
-
     cout << "Subscribe to topic : " << topic_name_ << endl;
-
+    sub_ = nh_->subscribe<sensor_msgs::JointState>( topic_name_, 1, boost::bind( &Move3DRosHuman::GetJointState, this, _1) );
     // Subscribe to get current posture
-    return nh_->subscribe<sensor_msgs::JointState>( topic_name_, 1, boost::bind( &Move3DRosHuman::GetJointState, this, _1) );
+    return true;
 }

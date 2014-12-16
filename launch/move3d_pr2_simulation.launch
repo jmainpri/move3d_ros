@@ -1,0 +1,12 @@
+<launch>
+
+  <arg name="output" default="screen"/>
+
+  <param name="draw_human_update" value="true" />
+
+  <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
+    <arg name="draw_human_update" value="true" />
+  </include>
+  <include file="$(find hrics_py)/launch/human_trajectory_publisher.launch" />
+
+</launch>

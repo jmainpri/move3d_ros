@@ -46,7 +46,7 @@ public:
 
     bool initHuman();
     void setUpdate(bool update) { update_robot_= update; }
-    ros::Subscriber subscribe_to_joint_angles(ros::NodeHandle* nh);
+    bool subscribe_to_joint_angles(ros::NodeHandle* nh);
     Move3D::confPtr_t get_current_conf();
 
 signals:
@@ -61,10 +61,11 @@ private:
     std::map<std::string,int> joint_map_;
     int draw_rate_;
     bool update_robot_;
-    bool joint_state_received_;
+    int joint_state_received_;
     std::string topic_name_;
-    ros::NodeHandle* nh_;
     void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
+    ros::Subscriber sub_;
+    ros::NodeHandle* nh_;
 
 };
 

@@ -64,148 +64,31 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
 {
     ui_->setupUi(this);
 
-    connect(ui_->pushButtonStart ,SIGNAL(clicked()), this,SLOT(start()));
+    connect(ui_->pushButtonStart ,     SIGNAL(clicked()), this,SLOT(start()));
     connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
     connect(ui_->pushButtonExecTrajs,  SIGNAL(clicked()), this, SLOT(executeLoadedMotions()));
+
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 
-    // Set robot structure to 0
-    robot_ = NULL;
-    move3d_trajs_.clear();
+//    // Set robot structure to 0
+//    move3d_trajs_.clear();
 
-    // Set all active joint ids and names to 0
-    active_joint_names_.clear();
-    active_dof_ids_.clear();
+//    // Set all active joint ids and names to 0
+//    active_joint_names_.clear();
+//    active_dof_ids_.clear();
 
-    joint_state_rate_ = 30;
-    joint_state_received_ = 0;
+    // GUI SPIN RATE
+    spin_rate_ = 30;
+
     draw_rate_ = 10; // draws only the 10th time
-
-    update_robot_ = false; // updates from sensor reading
+    draw_human_update_ = false;
+    draw_robot_update_ = false; // updates from sensor reading
 }
 
 Move3DRosGui::~Move3DRosGui()
 {
     delete ui_;
-}
-
-void Move3DRosGui::initPr2()
-{
-    cout << __PRETTY_FUNCTION__ << endl;
-
-    if( robot_ == NULL ){
-        ROS_ERROR("No robot named pr2 in Move3D");
-        return;
-    }
-
-    right_arm_joint_names_.resize(7);
-    right_arm_joint_names_[0] = "r_shoulder_pan_joint";
-    right_arm_joint_names_[1] = "r_shoulder_lift_joint";
-    right_arm_joint_names_[2] = "r_upper_arm_roll_joint";
-    right_arm_joint_names_[3] = "r_elbow_flex_joint";
-    right_arm_joint_names_[4] = "r_forearm_roll_joint";
-    right_arm_joint_names_[5] = "r_wrist_flex_joint";
-    right_arm_joint_names_[6] = "r_wrist_roll_joint";
-
-    left_arm_joint_names_.resize(7);
-    left_arm_joint_names_[0] = "l_shoulder_pan_joint";
-    left_arm_joint_names_[1] = "l_shoulder_lift_joint";
-    left_arm_joint_names_[2] = "l_upper_arm_roll_joint";
-    left_arm_joint_names_[3] = "l_elbow_flex_joint";
-    left_arm_joint_names_[4] = "l_forearm_roll_joint";
-    left_arm_joint_names_[5] = "l_wrist_flex_joint";
-    left_arm_joint_names_[6] = "l_wrist_roll_joint";
-
-    right_arm_dof_ids_.resize(7);
-    right_arm_dof_ids_[0] = robot_->getJoint("right-Arm1")->getIndexOfFirstDof();
-    right_arm_dof_ids_[1] = robot_->getJoint("right-Arm2")->getIndexOfFirstDof();
-    right_arm_dof_ids_[2] = robot_->getJoint("right-Arm3")->getIndexOfFirstDof();
-    right_arm_dof_ids_[3] = robot_->getJoint("right-Arm4")->getIndexOfFirstDof();
-    right_arm_dof_ids_[4] = robot_->getJoint("right-Arm5")->getIndexOfFirstDof();
-    right_arm_dof_ids_[5] = robot_->getJoint("right-Arm6")->getIndexOfFirstDof();
-    right_arm_dof_ids_[6] = robot_->getJoint("right-Arm7")->getIndexOfFirstDof();
-
-    left_arm_dof_ids_.resize(7);
-    left_arm_dof_ids_[0] = robot_->getJoint("left-Arm1")->getIndexOfFirstDof();
-    left_arm_dof_ids_[1] = robot_->getJoint("left-Arm2")->getIndexOfFirstDof();
-    left_arm_dof_ids_[2] = robot_->getJoint("left-Arm3")->getIndexOfFirstDof();
-    left_arm_dof_ids_[3] = robot_->getJoint("left-Arm4")->getIndexOfFirstDof();
-    left_arm_dof_ids_[4] = robot_->getJoint("left-Arm5")->getIndexOfFirstDof();
-    left_arm_dof_ids_[5] = robot_->getJoint("left-Arm6")->getIndexOfFirstDof();
-    left_arm_dof_ids_[6] = robot_->getJoint("left-Arm7")->getIndexOfFirstDof();
-
-    right_arm_topic_name_   = "/r_arm_controller/state";
-    left_arm_topic_name_    = "/l_arm_controller/state";
-
-    q_cur_ = robot_->getInitPos();
-}
-
-void Move3DRosGui::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config,
-                                 std::vector<std::string> joint_names,
-                                 std::vector<int> dof_ids)
-{
-//    cout << __PRETTY_FUNCTION__ << endl;
-
-    if( joint_names.empty() ){
-        ROS_ERROR("Active joint names not set");
-        return;
-    }
-
-    // Extract joint positions in the right order
-    if (    joint_config->joint_names.size() != joint_config->actual.positions.size() ||
-            joint_config->joint_names.size() != joint_names.size() ||
-            joint_config->joint_names.size() != dof_ids.size() )
-    {
-        ROS_ERROR("Malformed configuration update - skipping update");
-        return;
-    }
-
-    if( robot_ == NULL ){
-        ROS_ERROR("No Move3D robot selected");
-        return;
-    }
-
-    // Set the config
-    Eigen::VectorXd new_arm_config( joint_names.size() );
-
-    try
-    {
-        std::map<std::string, double> arm_configuration;
-        for (size_t idx = 0; idx < joint_config->joint_names.size(); idx ++)
-            arm_configuration[joint_config->joint_names[idx]] = joint_config->actual.positions[idx];
-
-        for (size_t idx = 0; idx < new_arm_config.size(); idx ++)
-            new_arm_config[idx] = arm_configuration[joint_names[idx]];
-    }
-    catch(...)
-    {
-        ROS_ERROR("Could not map joint correctly");
-        return;
-    }
-
-    if( q_cur_.get() == NULL )
-    {
-        ROS_ERROR("Current robot configuration not initialized");
-        return;
-    }
-
-    q_cur_->setFromEigenVector( new_arm_config, dof_ids );
-
-    if( update_robot_ )
-    {
-        robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
-
-        // OPENGL DRAW
-        if( (++joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
-        {
-            emit(drawAllWinActive());
-            joint_state_received_ = 0;
-        }
-    }
-
-    // Reset watchdog timer
-    // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
 void Move3DRosGui::setState(module_state_t state)
@@ -224,253 +107,74 @@ void Move3DRosGui::setState(module_state_t state)
 
 void Move3DRosGui::loadMotions()
 {
-    std::string folder = std::string(getenv("HOME_MOVE3D")) + "/trajs/aterm_sequence/";
-
-    // std::string folder = std::string(getenv("HOME_MOVE3D")) + "/../move3d-launch/launch_files";
-    //    loadMotions( folder );
-
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::loadMotions, this, folder ) );
-    emit(selectedPlanner(QString("BoostFunction")));
-}
-
-void Move3DRosGui::loadMotions(std::string folder)
-{
-    cout << __PRETTY_FUNCTION__ << endl;
-
-    std::stringstream ss;
-    std::vector<std::string> files;
-
-    int nb_trajs = 19;
-
-    for(int i=0; i<nb_trajs; i++ )
-    {
-        ss.str("");
-        ss << "trajectory" << std::setw(3) << std::setfill( '0' ) << i << ".traj";
-        files.push_back( folder + "/" + ss.str() );
-        cout << "add file : " << files[i] << endl;
-    }
-
-    if( robot_ != NULL )
-    {
-        Move3D::SequencesPlanners pool( robot_ );
-        pool.loadTrajsFromFile( files );
-        pool.playTrajs();
-
-        move3d_trajs_ = pool.getBestTrajs();
-    }
+    robot_backend_->loadMotions();
 }
 
 void Move3DRosGui::executeLoadedMotions()
 {
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosGui::executeLoadedMotionsThread, this ) );
-    emit(selectedPlanner(QString("BoostFunction")));
+    robot_backend_->executeLoadedMotions();
 }
 
-void Move3DRosGui::executeLoadedMotionsThread()
+void Move3DRosGui::runReplanning()
+{
+     cout << __PRETTY_FUNCTION__ << endl;
+}
+
+void Move3DRosGui::runHumanTracking()
+{
+     cout << __PRETTY_FUNCTION__ << endl;
+
+    // Update human joint angles
+    human_joint_state_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman>(new Move3DRosHuman());
+    human_joint_state_->subscribe_to_joint_angles(nh_);
+    human_joint_state_->setUpdate( draw_human_update_ );
+}
+
+void Move3DRosGui::runPr2Backend()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    if( move3d_trajs_.empty() )
-    {
-        ROS_ERROR( "No loaded trajectory" );
-        return;
-    }
-    if( !move3d_trajs_[0].getUseTimeParameter() )
-    {
-        ROS_ERROR( "Move3D traj is not a time parametrized trajectory" );
-        return;
-    }
-
-    executeElementaryMotion( move3d_trajs_[0].configAtTime(0.0) );
-
-    for(size_t i=0; i<move3d_trajs_.size(); i++ )
-    {
-        Move3D::confPtr_t q_cur = q_cur_->copy();
-
-//        Eigen::VectorXd q_1 = q_cur->getEigenVector( active_dof_ids_ );
-//        Eigen::VectorXd q_2 = move3d_trajs_[i].configAtTime(0.0)->getEigenVector( active_dof_ids_ );
-
-//        if( (q_1 - q_2).norm() > 0.4 )
-//        {
-//            ROS_ERROR( "Move3D traj is not starting at proper config, dist : %f", (q_1 - q_2).norm() );
-//            return;
-//        }
-
-        executeMove3DTrajectory( move3d_trajs_[i] );
-    }
+    // Update robot joint angles
+    robot_backend_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot>(new Move3DRosRobot());
+    robot_backend_->run_pr2_backend(nh_);
+    robot_backend_->setUpdate( draw_robot_update_ );
 }
 
-void Move3DRosGui::executeMove3DTrajectory(const Move3D::Trajectory& traj)
-{
-    cout << " **************************************"<< endl;
-    cout << __PRETTY_FUNCTION__ << endl;
-    cout << " **************************************"<< endl;
-
-    if( !traj.getUseTimeParameter() )
-    {
-        ROS_ERROR( "Move3D traj is not a time parametrized trajectory" );
-        return;
-    }
-
-    pr2_controllers_msgs::JointTrajectoryGoal command;
-
-    // Populate command
-    command.trajectory.joint_names = active_joint_names_;
-    command.trajectory.header.stamp = ros::Time::now();
-
-    // Start trajectory
-    double t = 0.0;
-    double time_length = traj.getTimeLength();
-    double dt = .10; // 100 ms (10 Hz)
-
-    std::vector<double> config(active_dof_ids_.size());
-
-    while( true )
-    {
-        Move3D::confPtr_t q = traj.configAtTime( t );
-
-        // Get configuration
-        for( int i=0; i<int(active_dof_ids_.size()); i++ )
-            config[i] = (*q)[ active_dof_ids_[i] ];
-
-        // Check configuration (smooth trajectory)
-        if( !command.trajectory.points.empty() )
-            for( int i=6; i<int(config.size()); i++)
-            {
-                double previous = command.trajectory.points.back().positions[i];
-                double diff = previous - config[i];
-                double angle_diff = diff_angle( config[i], previous );
-                while( std::fabs( angle_diff - diff ) > 1e-12 )
-                {
-                    if( diff > 0 )
-                        config[i] += 2*M_PI;
-                    else
-                        config[i] -= 2*M_PI;
-                    diff = previous - config[i];
-                    angle_diff = diff_angle( config[i], previous );
-                }
-            }
-
-        // Populate points
-        trajectory_msgs::JointTrajectoryPoint point;
-        point.positions = config;
-        point.velocities.clear(); // Clear for interpolation
-
-        // Set the execution time
-        point.time_from_start = ros::Duration( t );
-
-        // Add point
-        command.trajectory.points.push_back( point );
-
-        t += dt; // increase time
-        if( t > time_length ){ // TODO make sure to end at the end point
-            break;
-        }
-    }
-
-    // Command the arm
-    active_arm_client_->sendGoal( command );
-
-    // Wait until end of execution
-    while(!active_arm_client_->getState().isDone() && ros::ok())
-    {
-        usleep(50000);
-    }
-}
-
-void Move3DRosGui::executeElementaryMotion( Move3D::confPtr_t q_target )
-{
-    cout << __PRETTY_FUNCTION__ << endl;
-
-    Move3D::confPtr_t q_cur = q_cur_->copy();
-
-
-    // Get current configuration
-    std::vector<double> config_current(active_dof_ids_.size());
-    for( int j=0; j<int(active_dof_ids_.size()); j++ )
-        config_current[j] = (*q_cur)[ active_dof_ids_[j] ];
-
-    // Get target configuration
-    std::vector<double> config_target(active_dof_ids_.size());
-    for( int j=0; j<int(active_dof_ids_.size()); j++ )
-        config_target[j] = (*q_target)[ active_dof_ids_[j] ];
-
-    cout << "Filling command" << endl;
-
-    pr2_controllers_msgs::JointTrajectoryGoal command;
-
-    double execution_timestep = 10.0;
-
-    // Populate command
-    command.trajectory.joint_names = active_joint_names_;
-    command.trajectory.header.stamp = ros::Time::now();
-
-    // Populate target point
-    trajectory_msgs::JointTrajectoryPoint start_point;
-    start_point.positions = config_current;
-    start_point.velocities.resize(start_point.positions.size(), 0.0);
-    start_point.time_from_start = ros::Duration(0.0);
-
-    // Populate target point
-    trajectory_msgs::JointTrajectoryPoint target_point;
-    target_point.positions = config_target;
-    target_point.velocities.resize(target_point.positions.size(), 0.0);
-    // Set the execution time
-    target_point.time_from_start = ros::Duration(execution_timestep);
-
-    cout << "sending command" << endl;
-
-    // Add point
-    command.trajectory.points.push_back(target_point);
-
-    // Command the arm
-    active_arm_client_->sendGoal(command);
-
-    // Wait until end of execution
-    while(!active_arm_client_->getState().isDone() && ros::ok())
-    {
-        usleep(50000);
-    }
-}
-
-void Move3DRosGui::setActiveArm(arm_t arm)
-{
-    // SET THE ACTIVE ARM
-    arm_ = arm;
-
-    if( arm_ == left )
-    {
-        active_joint_names_ = left_arm_joint_names_;
-        active_dof_ids_     = left_arm_dof_ids_;
-        active_state_topic_name_ = left_arm_topic_name_;
-        active_arm_client_ = left_arm_client_;
-    }
-    else
-    {
-        active_joint_names_ = right_arm_joint_names_;
-        active_dof_ids_     = right_arm_dof_ids_;
-        active_state_topic_name_ = right_arm_topic_name_;
-        active_arm_client_ = right_arm_client_;
-    }
-}
-
-void Move3DRosGui::startHumanTracking()
+void Move3DRosGui::startNode()
 {
     int argc = 0;
     char **argv = NULL;
     ros::init( argc, argv, "move3d_pr2", ros::init_options::NoSigintHandler );
     nh_ = new ros::NodeHandle();
 
+    ros::NodeHandle nhp("~");
+    nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(false));
+    nhp.param(std::string("run_pr2_backend"),    run_pr2_backend_,      bool(false));
+    nhp.param(std::string("run_replanning"),     run_replanning_,       bool(false));
+    nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
+    nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
+    // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
+    // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
+
+    ui_->checkBoxRunHumanBackEnd->setChecked(   run_human_backend_ );
+    ui_->checkBoxRunPr2Backend->setChecked(     run_pr2_backend_ );
+    ui_->checkBoxRunReplanning->setChecked(     run_replanning_ );
+
+    if( run_pr2_backend_ )
+        runPr2Backend();
+
+    if( run_human_backend_ )
+        runHumanTracking();
+
+    if( run_replanning_ )
+        runReplanning();
+
     // Set module state
     setState( online );
 
-    // Update human joint angles
-    Move3DRosHuman human;
-    ros::Subscriber sub = human.subscribe_to_joint_angles(nh_);
-    human.setUpdate(true);
-
+    cout << "start spinning node GUI" << endl;
     // Spin node
-    ros::Rate spin_rate(joint_state_rate_);
+    ros::Rate spin_rate(spin_rate_);
     while (ros::ok())
     {
         // Process callbacks
@@ -480,76 +184,12 @@ void Move3DRosGui::startHumanTracking()
     }
 }
 
-void Move3DRosGui::run()
-{
-    cout << __PRETTY_FUNCTION__ << endl;
-
-    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
-    if( robot_ == NULL ){
-        ROS_ERROR("No ROBOT in Move3D");
-        return;
-    }
-
-    if( robot_->getName().find("PR2") != std::string::npos )
-        initPr2();
-    else {
-        ROS_ERROR("No robot named PR2 in Move3D");
-        return;
-    }
-
-    int argc = 0;
-    char **argv = NULL;
-    ros::init( argc, argv, "move3d_pr2", ros::init_options::NoSigintHandler );
-    nh_ = new ros::NodeHandle();
-
-    // Setup trajectory controller interface
-    right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/r_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for right arm controllers to come up...");
-    right_arm_client_->waitForServer();
-
-    left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/l_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for left arm controllers to come up...");
-    left_arm_client_->waitForServer();
-
-    setActiveArm( right );
-
-    // Subscribe to get current posture
-    ros::Subscriber sub_r = nh_->subscribe<pr2_controllers_msgs::JointTrajectoryControllerState>( right_arm_topic_name_, 1,
-                                                                                                boost::bind( &Move3DRosGui::GetJointState, this, _1,
-                                                                                                             right_arm_joint_names_, right_arm_dof_ids_ ) );
-
-    ros::Subscriber sub_l = nh_->subscribe<pr2_controllers_msgs::JointTrajectoryControllerState>( left_arm_topic_name_, 1,
-                                                                                                boost::bind( &Move3DRosGui::GetJointState, this, _1,
-                                                                                                             left_arm_joint_names_, left_arm_dof_ids_ ) );
-
-    // Set module state
-    setState( online );
-
-
-    // Update human joint angles
-    Move3DRosHuman human;
-    human.setUpdate(true);
-    human.subscribe_to_joint_angles(nh_);
-
-    // Spin node
-    ros::Rate spin_rate(joint_state_rate_);
-    while (ros::ok())
-    {
-        // Process callbacks
-        ros::spinOnce();
-        // Spin
-        spin_rate.sleep();
-    }
-}
 
 void Move3DRosGui::start()
 {
-
     cout << __PRETTY_FUNCTION__ << endl;
-//    boost::thread t( boost::bind( &Move3DRosGui::run, this ) );
 
-    boost::thread t( boost::bind( &Move3DRosGui::startHumanTracking, this ) );
-
+    boost::thread t( boost::bind( &Move3DRosGui::startNode, this ) );
 
 //    while( true )
 //    {

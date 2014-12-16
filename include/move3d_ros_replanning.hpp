@@ -59,6 +59,8 @@ signals:
 private:
 
     Move3D::Robot* robot_;
+    Move3D::Joint* draw_joint_;
+
     int draw_rate_;
     bool draw_execute_motion_;
     bool update_robot_;
@@ -72,7 +74,7 @@ private:
     double time_along_current_path_;
     double motion_duration_; // TODO REMOVE
     double current_motion_duration_;
-    double current_discretization_; // TODO REMOVE
+    // double current_discretization_; // TODO REMOVE
 
     std::vector<Move3D::confPtr_t> context_;
     Move3D::confPtr_t q_init_;
@@ -85,7 +87,7 @@ private:
     boost::function<bool(const Move3D::Trajectory& trajectory, double time)> send_trajectory_;
 
     bool runStandardStomp( int iter );
-    void execute(const Move3D::Trajectory& trajectory, bool to_end);
+    void execute( const Move3D::Trajectory& trajectory );
     bool updateContext();
 };
 

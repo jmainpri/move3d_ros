@@ -30,12 +30,13 @@
 
 #include <QWidget>
 
-#include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
-#include <pr2_controllers_msgs/JointTrajectoryAction.h>
-#include <actionlib/client/simple_action_client.h>
 #include <ros/ros.h>
 
 #include "API/Device/robot.hpp"
+
+#include "move3d_ros_robot.hpp"
+#include "move3d_ros_human.hpp"
+#include "move3d_ros_replanning.hpp"
 
 namespace Ui {
 class Move3DRosGui;
@@ -52,17 +53,13 @@ public:
     explicit Move3DRosGui(QWidget *parent = 0);
     ~Move3DRosGui();
 
-    void run();
     void initPr2();
 
-    void startHumanTracking();
+    void runPr2Backend();
+    void runHumanTracking();
+    void runReplanning();
 
-    void executeElementaryMotion(Move3D::confPtr_t q_target);
-    void executeMove3DTrajectory(const Move3D::Trajectory& traj);
-    void executeLoadedMotionsThread();
-    void loadMotions(std::string folder);
-    void setActiveArm(arm_t arm);
-
+    void startNode();
 
 public slots:
 
@@ -70,7 +67,6 @@ public slots:
     void setState(module_state_t state);
     void loadMotions();
     void executeLoadedMotions();
-
 
 signals:
 
@@ -82,36 +78,21 @@ private:
 
     Ui::Move3DRosGui *ui_;
 
-    int joint_state_rate_;
-    int joint_state_received_;
+    int spin_rate_;
+
     int draw_rate_;
+    bool draw_human_update_;
+    bool draw_robot_update_;
 
-    std::string active_state_topic_name_;
-    std::string right_arm_topic_name_;
-    std::string left_arm_topic_name_;
+    bool run_human_backend_;
+    bool run_pr2_backend_;
+    bool run_replanning_;
 
-    std::vector<std::string> right_arm_joint_names_;
-    std::vector<std::string> left_arm_joint_names_;
-    std::vector<std::string> active_joint_names_;
-
-    std::vector<int> right_arm_dof_ids_;
-    std::vector<int> left_arm_dof_ids_;
-    std::vector<int> active_dof_ids_;
-
-
-    Move3D::Robot* robot_;
-    Move3D::confPtr_t q_cur_;
-    bool update_robot_;
-    std::vector<Move3D::Trajectory> move3d_trajs_;
-
-    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config,
-                       std::vector<std::string> joint_names,
-                       std::vector<int> dof_ids);
+    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot> robot_backend_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman> human_joint_state_;
+    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosReplanning> replanning_;
 
     ros::NodeHandle* nh_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > right_arm_client_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > left_arm_client_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > active_arm_client_;
 };
 
 #endif // MOVE3D_ROS_HPP

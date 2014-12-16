@@ -33,6 +33,7 @@
 
 #include "API/project.hpp"
 #include "API/Device/robot.hpp"
+#include "API/Graphic/drawCost.hpp"
 #include "planner_handler.hpp"
 #include "planner/plannerSequences.hpp"
 #include "planner/TrajectoryOptim/trajectoryOptim.hpp"
@@ -60,6 +61,7 @@ Move3DRosReplanning::Move3DRosReplanning(QWidget *parent)
 
     draw_rate_ = 10; // draws only the 10th time
     draw_execute_motion_ = false;
+    draw_joint_ = robot_->getJoint( 45 );
 
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
@@ -91,7 +93,9 @@ bool Move3DRosReplanning::initReplanning(Move3D::Robot* robot, Move3D::confPtr_t
     // INITIALIZE REPLANNING
     // current_human_traj_.resize( 0, 0 ); TODO add it for gathering data
     executed_trajectory_ = Move3D::Trajectory(robot_);
-    // executed_trajectory_.push_back( std::make_pair( 0.0, q_init_ ) ); // TODO make push back function
+    executed_trajectory_.setUseTimeParameter( true );
+    executed_trajectory_.setUseConstantTime( false );
+    executed_trajectory_.push_back(  q_init_, 0.0 );
     current_time_ = 0.0;
     time_step_ = 0.1; // Simulation step
     global_discretization_ = 0.01; // time betweem configurations (choose a number that divides the simulation time step)
@@ -190,9 +194,10 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     return true;
 }
 
+/**
 void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
 {
-    path.replaceP3dTraj();
+//    path.replaceP3dTraj();
 
     if( path.getUseTimeParameter() )
         current_discretization_ = path.getDeltaTime();
@@ -214,7 +219,7 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
         robot_->setAndUpdate( *q );
 
         // Add the configuration to the trajectory
-        // executed_trajectory_.push_back( std::make_pair( global_discretization_, q ) ); // TODO add pushback
+        executed_trajectory_.push_back( q, global_discretization_ );
 
         // If the time exceeds the trajectory length
         // inferior to a hundredth of a second
@@ -223,10 +228,9 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
             end_planning_ = true;
             break;
         }
-
         if( draw_execute_motion_ )
         {
-            g3d_draw_allwin_active();
+            drawAllWinActive();
             usleep( floor( global_discretization_ * 1e6 * time_factor ) );
         }
     }
@@ -238,7 +242,7 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
         {
             t += global_discretization_;
             q = path.configAtTime( t );
-            // executed_trajectory_.push_back( std::make_pair( global_discretization_, q ) ); // TODO add pushback
+            executed_trajectory_.push_back( q, global_discretization_ );
         }
         end_planning_ = true;
     }
@@ -247,12 +251,68 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
     if( end_planning_ ) {
         double dt = motion_duration_ - ( t + current_time_ );
         t += dt;
-        // executed_trajectory_.push_back( std::make_pair( dt, q_goal_->copy() ) ); // TODO add pushback
+        executed_trajectory_.push_back( q_goal_->copy(), dt );
     }
 
     time_along_current_path_ = t;
     current_time_ += time_along_current_path_;
     current_motion_duration_ -= time_along_current_path_;
+
+    q_init_ = q;
+
+    cout << "End execute" << endl;
+}
+*/
+
+void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
+{
+//    path.replaceP3dTraj();
+
+    Move3D::confPtr_t q;
+
+    int nb_configs = time_step_ / global_discretization_; // global_discretization_ must be a multiple of time step
+    double t = 0;
+
+    for( int i=0; i<nb_configs; i++ )
+    {
+        // Find configurations of active human along the trajectory
+        t += global_discretization_;
+
+        // Add the configuration to the trajectory
+        executed_trajectory_.push_back( path.configAtTime( t ), global_discretization_ );
+
+        // If the time exceeds the trajectory length
+        // inferior to a hundredth of a second
+        if( ( motion_duration_ - ( t + current_time_ ) ) < global_discretization_  )
+        {
+            end_planning_ = true;
+            break;
+        }
+    }
+
+    // If duration left is inferior to half a time step do not replan
+    if( ( motion_duration_ - ( t + current_time_ ) ) <= (time_step_/2.) )
+    {
+        while( motion_duration_ - ( t + current_time_ ) > global_discretization_ )
+        {
+            t += global_discretization_;
+            executed_trajectory_.push_back( path.configAtTime( t ), global_discretization_ );
+        }
+        end_planning_ = true;
+    }
+
+    // Add the end configuration
+    if( end_planning_ ) {
+        double dt = motion_duration_ - ( t + current_time_ );
+        t += dt;
+        executed_trajectory_.push_back( q_goal_->copy(), dt );
+    }
+
+    time_along_current_path_ = t;
+    current_time_ += time_along_current_path_;
+    current_motion_duration_ -= time_along_current_path_;
+
+    global_linesToDraw.push_back( std::make_pair( Eigen::Vector3d(1, 0, 0), path.getJointPoseTrajectory( draw_joint_ ) ) );
 
     q_init_ = q;
 
@@ -265,34 +325,21 @@ double Move3DRosReplanning::run(Move3D::confPtr_t q_goal)
 
     for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
     {
-        g3d_draw_allwin_active();
-
         runStandardStomp( i );
 
         if( !PlanEnv->getBool(PlanParam::stopPlanner) )
-            execute( path_, false );
+            execute( path_ );
+
+        drawAllWinActive();
 
 //        cout << "wait for key" << endl;
 //        cin.ignore();
-
 //        path_.replaceP3dTraj();
 
     }
 
-//    cout << "executed_path_.cost() : " << executed_path_.cost() << endl;
-//    Move3D::Trajectory path( HriEnv->getBool(HricsParam::ioc_no_replanning) ? path_ : motion_to_traj( executed_trajectory_, robot_ ));
-
-    Move3D::Trajectory path(executed_trajectory_);
-    robot_->setCurrentMove3DTraj( path );
-    path.replaceP3dTraj();
-
     drawAllWinActive();
 
     cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
-    cout << "path.size() : " << path.getNbOfViaPoints() << endl;
-//    cout << "executed motion duration : " << motion_duration( executed_trajectory_ ) << endl;
-//    cout << "passive motion duration : " << motion_duration( human_passive_motion_ ) << endl;
-//    cout << " active motion duration : " << motion_duration( robot_motion_ ) << endl;
-
     return 0.0;
 }
