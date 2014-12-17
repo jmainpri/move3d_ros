@@ -42,6 +42,7 @@
 #include "API/Device/robot.hpp"
 #include "planner_handler.hpp"
 #include "planner/plannerSequences.hpp"
+#include "utils/misc_functions.hpp"
 
 #include "qtMainInterface/mainwindow.hpp"
 #include "qtOpenGL/glwidget.hpp"
@@ -55,6 +56,8 @@
 #include <time.h>
 #include <sstream>
 
+#include <ros/package.h>
+
 using std::cout;
 using std::endl;
 
@@ -65,7 +68,7 @@ Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 
     // Set robot structure to 0
-    robot_ = NULL;
+    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");;
     move3d_trajs_.clear();
 
     // Set all active joint ids and names to 0
@@ -216,10 +219,12 @@ void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControll
 
 void Move3DRosRobot::loadMotions()
 {
-    std::string folder = std::string(getenv("HOME_MOVE3D")) + "/trajs/aterm_sequence/";
+     std::string folder = ros::package::getPath("move3d_ros") + "/data/trajs/pr2/";
 
-    // std::string folder = std::string(getenv("HOME_MOVE3D")) + "/../move3d-launch/launch_files";
-    //    loadMotions( folder );
+    // std::string folder = ros::package::getPath("move3d_ros") + "/data/trajs/aterm_sequence/";
+
+    // std::string folder = ros::package::getPath("move3d_ros") + "/../move3d-launch/launch_files";
+    // loadMotions( folder );
 
     global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosRobot::loadMotions, this, folder ) );
     emit(selectedPlanner(QString("BoostFunction")));
@@ -228,24 +233,26 @@ void Move3DRosRobot::loadMotions()
 void Move3DRosRobot::loadMotions(std::string folder)
 {
     cout << __PRETTY_FUNCTION__ << endl;
-
+    int nb_max_traj = 19;
     std::stringstream ss;
-    std::vector<std::string> files;
+    std::vector<std::string> files = move3d_get_files_in_folder( folder, "traj", nb_max_traj );
 
-    int nb_trajs = 19;
-
-    for(int i=0; i<nb_trajs; i++ )
+    if( files.empty() )
     {
-        ss.str("");
-        ss << "trajectory" << std::setw(3) << std::setfill( '0' ) << i << ".traj";
-        files.push_back( folder + "/" + ss.str() );
-        cout << "add file : " << files[i] << endl;
+        ROS_INFO("No tajectory found");
+        return;
+    }
+    std::vector<std::string> files_full;
+    for(int i=0; i<files.size(); i++ )
+    {
+        files_full.push_back( folder + files[i] );
+        cout << "add file : " << files_full[i] << endl;
     }
 
     if( robot_ != NULL )
     {
         Move3D::SequencesPlanners pool( robot_ );
-        pool.loadTrajsFromFile( files );
+        pool.loadTrajsFromFile( files_full );
         pool.playTrajs();
 
         move3d_trajs_ = pool.getBestTrajs();
@@ -313,7 +320,7 @@ void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj, boo
     // Start trajectory
     double t = 0.0;
     double time_length = traj.getTimeLength();
-    double dt = .10; // 100 ms (10 Hz)
+    double dt = .100; // 100 ms (10 Hz)
 
     std::vector<double> config(active_dof_ids_.size());
 

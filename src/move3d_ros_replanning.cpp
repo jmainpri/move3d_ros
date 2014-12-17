@@ -40,6 +40,7 @@
 #include "planner/TrajectoryOptim/trajectoryOptim.hpp"
 #include "planner/TrajectoryOptim/Stomp/stompOptimizer.hpp"
 #include "collision_space/collision_space_factory.hpp"
+#include "utils/NumsAndStrings.hpp"
 
 #include "qtMainInterface/mainwindow.hpp"
 
@@ -51,6 +52,8 @@
 #include <cmath>
 #include <time.h>
 #include <sstream>
+
+#include <ros/package.h>
 
 using std::cout;
 using std::endl;
@@ -130,12 +133,17 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal, bool update)
 
 void Move3DRosReplanning::setActiveDofs()
 {
-     active_dofs_.clear();
+    active_dofs_.clear();
 
-    std::vector<int> active_joints = traj_optim_get_active_joints();
+    std::vector<int> active_joints = traj_optim_get_planner_joints();
 
     for(int i=0; i<active_joints.size(); i++ )
         active_dofs_.push_back( robot_->getJoint(i)->getIndexOfFirstDof() );
+
+//    for(int i=0;i<active_dofs_.size();i++)
+//    {
+//        cout << "active dofs [" << i << "]: " << active_dofs_[i] << endl;
+//    }
 }
 
 bool Move3DRosReplanning::processTime() const
@@ -222,6 +230,7 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
             for(int i=0; i<nb_config; i++){
                 Move3D::confPtr_t q = path_.configAtTime( time_along_current_path_-double(nb_config-i)*dt );
                 buffer.push_back( q->getEigenVector( active_dofs_ ) );
+                cout << "vect [" << i << "]: " << buffer[i].transpose() << endl;
             }
             traj_optim_set_buffer( buffer );
 
@@ -338,6 +347,29 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     cout << "End execute" << endl;
 }
 
+void Move3DRosReplanning::saveExecutedTraj(int ith) const
+{
+    double dt_approx = 0.10; // 20Hz
+
+    int nb_config = executed_trajectory_.getTimeLength() / dt_approx;
+    double dt = executed_trajectory_.getTimeLength() / (nb_config-1);
+
+    Move3D::Trajectory executed_trajectory_constant_time(robot_);
+    executed_trajectory_constant_time.setUseTimeParameter(true);
+    executed_trajectory_constant_time.setUseConstantTime(true);
+    executed_trajectory_constant_time.setDeltaTime(dt);
+
+    for(int i=0; i<nb_config; i++)
+    {
+        Move3D::confPtr_t q(executed_trajectory_.configAtTime( double(i) * dt ));
+        executed_trajectory_constant_time.push_back( q );
+    }
+
+    std::string traj_name = ros::package::getPath("move3d_ros") + "/data/trajs/pr2/traj_" + num_to_string(ith) + ".traj";
+    cout << "save executed_trajectory_" << traj_name << endl;
+    executed_trajectory_constant_time.saveToFile( traj_name );
+}
+
 void Move3DRosReplanning::runReplanning()
 {
     cout << __PRETTY_FUNCTION__ << endl;
@@ -426,6 +458,8 @@ void Move3DRosReplanning::runReplanning()
 
                 r.sleep();
             }
+
+            saveExecutedTraj( j );
         }
 
         cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;

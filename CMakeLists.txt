@@ -7,6 +7,7 @@ project(move3d_ros)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  roslib
   std_msgs
   trajectory_msgs
   pr2_controllers_msgs
@@ -83,7 +84,7 @@ find_package(cmake_modules REQUIRED)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include CATKIN_DEPENDS control_msgs roscpp rospy std_msgs trajectory_msgs sensor_msgs actionlib DEPENDS system_lib Eigen)
+catkin_package(INCLUDE_DIRS include CATKIN_DEPENDS control_msgs roscpp rospy roslib std_msgs trajectory_msgs sensor_msgs actionlib DEPENDS system_lib Eigen)
 
 ###########
 ## Build ##

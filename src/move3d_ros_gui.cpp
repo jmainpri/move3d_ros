@@ -107,11 +107,21 @@ void Move3DRosGui::setState(module_state_t state)
 
 void Move3DRosGui::loadMotions()
 {
+    if( robot_backend_.get() == NULL )
+    {
+        ROS_ERROR("not initialized");
+        return;
+    }
     robot_backend_->loadMotions();
 }
 
 void Move3DRosGui::executeLoadedMotions()
 {
+    if( robot_backend_.get() == NULL )
+    {
+        ROS_ERROR("not initialized");
+        return;
+    }
     robot_backend_->executeLoadedMotions();
 }
 
@@ -119,7 +129,13 @@ bool Move3DRosGui::sendTrajectory( const Move3D::Trajectory& trajectory, double 
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
+    if( robot_backend_.get() == NULL )
+    {
+        ROS_ERROR("robot_backend_ not initialized");
+        return false;
+    }
     robot_backend_->executeMove3DTrajectory( trajectory, false );
+    return true;
 }
 
 std::vector<Move3D::confPtr_t> Move3DRosGui::getContext()
@@ -206,7 +222,6 @@ void Move3DRosGui::runReplanning()
 void Move3DRosGui::runHumanTracking()
 {
      cout << __PRETTY_FUNCTION__ << endl;
-
     // Update human joint angles
     human_joint_state_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman>(new Move3DRosHuman());
     human_joint_state_->subscribe_to_joint_angles( nh_ );
@@ -216,9 +231,6 @@ void Move3DRosGui::runHumanTracking()
 void Move3DRosGui::runPr2Backend()
 {
     cout << __PRETTY_FUNCTION__ << endl;
-
-    // Update robot joint angles
-    robot_backend_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot>(new Move3DRosRobot());
     robot_backend_->run_pr2_backend( nh_ );
     robot_backend_->setUpdate( draw_robot_update_ );
 }
@@ -233,7 +245,7 @@ void Move3DRosGui::startNode()
     ros::NodeHandle nhp("~");
     nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(false));
     nhp.param(std::string("run_robot_backend"),  run_robot_backend_,    bool(false));
-    nhp.param(std::string("run_replanning"),     run_replanning_,       bool(false));
+    nhp.param(std::string("run_replanning"),     run_replanning_,       bool(true));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
     // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
@@ -243,6 +255,9 @@ void Move3DRosGui::startNode()
     ui_->checkBoxRunPr2Backend->setChecked(     run_robot_backend_ );
     ui_->checkBoxRunReplanning->setChecked(     run_replanning_ );
 
+
+    // Update robot joint angles
+    robot_backend_ = MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot>(new Move3DRosRobot());
     if( run_robot_backend_ )
         runPr2Backend();
 
