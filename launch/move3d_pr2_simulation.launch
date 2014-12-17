@@ -3,7 +3,7 @@
   <arg name="output" default="screen"/>
   <arg name="draw_human_update" value="false" />
   <arg name="draw_robot_update" value="false" />
-  <arg name="run_robot_backend" value="true" />
+  <arg name="run_robot_backend" value="false" />
   <arg name="run_human_tracking" default="false" />
   <arg name="run_replanning" value="true" />
 

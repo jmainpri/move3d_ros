@@ -80,6 +80,7 @@ private:
     // double current_discretization_; // TODO REMOVE
 
     double time_last_sent_;
+    double time_overhead_;
 
     std::vector<Move3D::confPtr_t> context_;
     Move3D::confPtr_t q_init_;

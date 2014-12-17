@@ -64,7 +64,7 @@ Move3DRosReplanning::Move3DRosReplanning(QWidget *parent)
     draw_rate_ = 10; // draws only the 10th time
     draw_execute_motion_ = false;
 
-    send_to_robot_ = true;
+    send_to_robot_ = false;
 
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
@@ -106,12 +106,15 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal, bool update)
 
     // intialize time variables
     current_time_ = 0.0;
-    time_step_ = 0.5; // Simulation step
     global_discretization_ = 0.01; // time betweem configurations (choose a number that divides the simulation time step)
     time_along_current_path_ = 0.0;
     end_planning_ = false;
     current_motion_duration_ = 5.0; // General timelength between waypoints
     motion_duration_ = 5.0;
+
+    time_step_ = 0.5; // Simulation step
+    time_overhead_ = 0.25;
+
 
     // Clear trajectory to draw
     global_linesToDraw.clear();
@@ -171,7 +174,9 @@ bool Move3DRosReplanning::updateContext(bool update_robot)
         robot->setAndUpdate(*q);
     }
 
-    g3d_draw_allwin_active();
+    if( !ENV.getBool(Env::drawDisabled) )
+        g3d_draw_allwin_active();
+
     return true;
 }
 
@@ -232,7 +237,7 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     // SET PLANNING STOP CONDITIONS
     traj_optim_set_use_iteration_limit(false);
     PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
-    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, time_step_ - 0.17 ); // TODO fix that automatically
+    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, time_step_ - time_overhead_ );
 
     // PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, false );
     // traj_optim_set_use_iteration_limit(true);
@@ -316,7 +321,7 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     current_motion_duration_ -= time_along_current_path_;
 
     // Add trajectory to draw
-    if( draw_joint_ != NULL )
+    if( draw_joint_ != NULL && !ENV.getBool(Env::drawDisabled) )
     {
         global_linesToDraw.clear();
         global_linesToDraw.push_back( std::make_pair( Eigen::Vector3d(1, 0, 0), path.getJointPoseTrajectory( draw_joint_ ) ) );
@@ -329,16 +334,6 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
 
     // Set last configuration as q_init_
     q_init_ = q;
-
-    // Use robot backend
-    if( send_to_robot_ )
-        send_trajectory_( path_, 0.0 );
-
-    double secs = ros::Time::now().toSec();
-    if( time_last_sent_ != -1. )
-        cout << "TIME DELTA : " << secs - time_last_sent_ << endl;
-
-    time_last_sent_ = secs;
 
     cout << "End execute" << endl;
 }
@@ -378,26 +373,58 @@ void Move3DRosReplanning::runReplanning()
             robot_->setAndUpdate( *q_init_ );
 
             ROS_INFO("STOMP NEW ITERATION");
-            time_last_sent_ = -1.;
 
-            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(false) && processTime(); i++ )
+            ros::Rate r( 1./time_step_ ); // 2 hz
+            double delta_time = 0.0;
+
+
+            for(int i=0; ros::ok() && (!PlanEnv->getBool(PlanParam::stopPlanner)); i++ )
             {
+                double secs_1 = ros::Time::now().toSec();
 
+                if( (i > 0) && send_to_robot_ )
+                    send_trajectory_( path_, 0.0 );
 
-                if(!runStandardStomp( i ))
-                {
+                cout << "____________________________________________________________" << endl;
+                cout << "____________________________________________________________" << endl;
+                cout << "____________________________________________________________" << endl;
+                cout << "Replanning step " << i << " , TIME DELTA : " << delta_time << endl;
+
+                if( !processTime() ){ // advances simulation time
+                    ROS_INFO("Rend replanning");
+                    break;
+                }
+                if( !updateContext(false) ){ // get the human and possibily objects in the scene
+                    ROS_ERROR("Replanning could not update");
+                    return;
+                }
+                if( !runStandardStomp( i ) ) { // Rrun Stomp
                     ROS_ERROR("STOMP ERROR");
                     return;
                 }
 
+//                ros::Duration( time_step_ - time_overhead_ ).sleep();
+
                 if( !PlanEnv->getBool(PlanParam::stopPlanner) )
                     execute( path_ );
 
-                cout << "End of iteration " << i << endl;
+                cout << "End of replanning step " << i << endl;
 
-                // cout << "wait for key" << endl;
-                // cin.ignore();
-                // path_.replaceP3dTraj();
+                double secs_2 = ros::Time::now().toSec();
+
+                delta_time = secs_2 - secs_1;
+
+                double time_remaning = time_step_ - delta_time;
+
+                cout << " -- delta : " << delta_time << " sec." << endl;
+                cout << " -- running  : " << time_step_ - time_overhead_  << " sec." << endl;
+                cout << " -- remaning : " << time_remaning << " sec." << endl;
+                cout << " -- overhead old : " << time_overhead_ << " sec." << endl;
+                cout << " -- overhead new : " << time_overhead_ + ( 0.05 - time_remaning ) << " sec." << endl;
+
+                time_overhead_ += ( 0.05 - time_remaning ); // automatic tunning of the overhead
+
+                r.sleep();
             }
         }
 
