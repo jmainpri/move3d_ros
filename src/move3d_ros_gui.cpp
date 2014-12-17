@@ -168,20 +168,10 @@ void Move3DRosGui::runReplanning()
     {
         cout << "Robot is : " << robot->getName() << endl;
 
-        Move3D::SequencesPlanners pool( robot );
-        std::vector<Move3D::confPtr_t> stored_configs = pool.getStoredConfig();
-
-        if( !stored_configs.empty() )
-        {
-            replanning_->setRobot( robot );
-            replanning_->setGetContextFunction( boost::bind( &Move3DRosGui::getContext, this) );
-            replanning_->setSendTrajectoryFunction( boost::bind( &Move3DRosGui::sendTrajectory, this, _1, _2) );
-            replanning_->run( stored_configs[0] );
-        }
-        else
-        {
-            ROS_ERROR("No stored configs for replanning");
-        }
+        replanning_->setRobot( robot );
+        replanning_->setGetContextFunction( boost::bind( &Move3DRosGui::getContext, this) );
+        replanning_->setSendTrajectoryFunction( boost::bind( &Move3DRosGui::sendTrajectory, this, _1, _2) );
+        replanning_->run();
     }
 }
 

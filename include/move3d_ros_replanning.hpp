@@ -47,8 +47,7 @@ public:
     bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct) { get_context_ = fct; }
     bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time)> fct) { send_trajectory_ = fct; }
 
-
-    void run(Move3D::confPtr_t q_goal);
+    void run();
 
     void setRobot(Move3D::Robot* robot) { robot_ = robot; }
 
@@ -62,6 +61,8 @@ private:
 
     Move3D::Robot* robot_;
     Move3D::Joint* draw_joint_;
+
+    bool m_is_running;
 
     int draw_rate_;
     bool draw_execute_motion_;
@@ -88,7 +89,7 @@ private:
     boost::function<std::vector<Move3D::confPtr_t>(void)> get_context_;
     boost::function<bool(const Move3D::Trajectory& trajectory, double time)> send_trajectory_;
 
-    void runReplanning(Move3D::confPtr_t q_goal);
+    void runReplanning();
     bool runStandardStomp( int iter );
     void execute( const Move3D::Trajectory& trajectory );
     bool updateContext();

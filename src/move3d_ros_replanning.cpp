@@ -98,8 +98,13 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal)
     executed_trajectory_.setUseTimeParameter( true );
     executed_trajectory_.setUseConstantTime( false );
     executed_trajectory_.push_back( q_init_, 0.0 );
+
+    // intiialize path
+    path_ = Move3D::Trajectory( robot_ );
+
+    // intialize time variables
     current_time_ = 0.0;
-    time_step_ = 0.8; // Simulation step
+    time_step_ = 0.5; // Simulation step
     global_discretization_ = 0.01; // time betweem configurations (choose a number that divides the simulation time step)
     time_along_current_path_ = 0.0;
     end_planning_ = false;
@@ -269,7 +274,8 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
         while( motion_duration_ - ( t + current_time_ ) > global_discretization_ )
         {
             t += global_discretization_;
-            executed_trajectory_.push_back( path.configAtTime( t ), global_discretization_ );
+            q = path.configAtTime( t );
+            executed_trajectory_.push_back( q, global_discretization_ );
         }
         end_planning_ = true;
     }
@@ -300,38 +306,75 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     cout << "End execute" << endl;
 }
 
-void Move3DRosReplanning::runReplanning( Move3D::confPtr_t q_goal )
+void Move3DRosReplanning::runReplanning()
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
-    initReplanning( q_goal );
+    Move3D::SequencesPlanners pool( robot_ );
+    std::vector<Move3D::confPtr_t> configs = pool.getStoredConfig();
 
-    robot_->setAndUpdate( *q_init_ );
-
-    for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
+    if( !configs.empty() )
     {
-        runStandardStomp( i );
+        std::vector<Move3D::confPtr_t> sequence;
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[2] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
 
-        if( !PlanEnv->getBool(PlanParam::stopPlanner) )
-            execute( path_ );
+        for(int j=0; j<sequence.size(); j++ )
+        {
+            initReplanning( sequence[j] );
+
+            robot_->setAndUpdate( *q_init_ );
+
+            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
+            {
+                if(!runStandardStomp( i ))
+                {
+                    ROS_ERROR("STOMP ERROR");
+                    return;
+                }
+
+                if( !PlanEnv->getBool(PlanParam::stopPlanner) )
+                    execute( path_ );
+
+                g3d_draw_allwin_active();
+
+                cout << "End of iteration " << i << endl;
+
+                // cout << "wait for key" << endl;
+                // cin.ignore();
+                // path_.replaceP3dTraj();
+            }
+        }
 
         g3d_draw_allwin_active();
 
-        cout << "End of iteration " << i << endl;
-
-//        cout << "wait for key" << endl;
-//        cin.ignore();
-//        path_.replaceP3dTraj();
+        cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
 
     }
-
-    g3d_draw_allwin_active();
-
-    cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
+    else
+    {
+        ROS_ERROR("No stored configs for replanning");
+    }
 }
 
-void Move3DRosReplanning::run( Move3D::confPtr_t q_goal )
+void Move3DRosReplanning::run()
 {
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosReplanning::runReplanning, this, q_goal ) );
+    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosReplanning::runReplanning, this ) );
     emit(selectedPlanner(QString("BoostFunction")));
 }
