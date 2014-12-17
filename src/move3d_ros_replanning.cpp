@@ -133,14 +133,29 @@ void Move3DRosReplanning::setActiveDofs()
         active_dofs_.push_back( robot_->getJoint(i)->getIndexOfFirstDof() );
 }
 
-bool Move3DRosReplanning::updateContext()
+bool Move3DRosReplanning::processTime() const
 {
     cout << "MOTION DURATION : " << motion_duration_ << endl;
     cout << "CURRENT TIME : " << current_time_ << endl;
     cout << "TIME LEFT : " << current_motion_duration_ << endl;
     cout << "TIME ALONG CURRENT TRAJ : " << time_along_current_path_ << endl;
 
-    context_ = get_context_(); // Function getting the context
+    if( motion_duration_ - current_time_ < 1e-2 ) // inferior to a hundredth of a second
+        return false;
+
+    return true;
+}
+
+bool Move3DRosReplanning::updateContext()
+{
+    try
+    {
+        context_ = get_context_(); // Function getting the context
+    }
+    catch(...)
+    {
+        return false;
+    }
 
     for( size_t i=0; i<int(context_.size()); i++ )
     {
@@ -291,9 +306,6 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     current_time_ += time_along_current_path_;
     current_motion_duration_ -= time_along_current_path_;
 
-    // Set last configuration as q_init_
-    q_init_ = q;
-
     // Add trajectory to draw
     if( draw_joint_ != NULL )
     {
@@ -302,6 +314,12 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     }
     else
         cout << "cannot draw trajectory" << endl;
+
+    // Set to previous q_init_
+    robot_->setAndUpdate( *q_init_ );
+
+    // Set last configuration as q_init_
+    q_init_ = q;
 
     cout << "End execute" << endl;
 }
@@ -341,7 +359,9 @@ void Move3DRosReplanning::runReplanning()
 
             robot_->setAndUpdate( *q_init_ );
 
-            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(); i++ )
+            ROS_INFO("STOMP NEW ITERATION");
+
+            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext() && processTime(); i++ )
             {
                 if(!runStandardStomp( i ))
                 {

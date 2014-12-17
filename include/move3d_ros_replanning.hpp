@@ -95,6 +95,7 @@ private:
     bool updateContext();
     bool initReplanning( Move3D::confPtr_t q_goal );
     void setActiveDofs();
+    bool processTime() const;
 };
 
 #endif // MOVE3D_ROS_REPLANNING_HPP
