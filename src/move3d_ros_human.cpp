@@ -63,6 +63,8 @@ Move3DRosHuman::Move3DRosHuman(QWidget *parent)
     update_robot_ = false; // updates from sensor reading
     joint_names_.clear();
 
+    is_refreshed_ = false;
+
     connect(this,  SIGNAL(drawAllWinActive()), global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 }
 
@@ -108,7 +110,7 @@ Move3D::confPtr_t Move3DRosHuman::get_current_conf()
 
 void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_config )
 {
-//    cout << __PRETTY_FUNCTION__ << endl;
+    // cout << __PRETTY_FUNCTION__ << endl;
 
     if( robot_ == NULL ) {
         ROS_ERROR("Human model not initialized");
@@ -184,8 +186,12 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
         // TODO REMOVE ONE ARM MODEL
         (*q_cur_)[robot_->getJoint("lShoulderX")->getIndexOfFirstDof()] = -M_PI/2; // Add one for time
 
+        // Set to true when got data
+        is_refreshed_ = true;
+
         if( update_robot_ )
         {
+            cout << "update robot" << endl;
             robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
 
             joint_state_received_ += 1;

@@ -115,9 +115,11 @@ void Move3DRosGui::executeLoadedMotions()
     robot_backend_->executeLoadedMotions();
 }
 
-bool Move3DRosGui::sendTrajectory(const Move3D::Trajectory& trajectory, double time)
+bool Move3DRosGui::sendTrajectory( const Move3D::Trajectory& trajectory, double time )
 {
     cout << __PRETTY_FUNCTION__ << endl;
+
+    robot_backend_->executeMove3DTrajectory( trajectory, false );
 }
 
 std::vector<Move3D::confPtr_t> Move3DRosGui::getContext()
@@ -125,10 +127,14 @@ std::vector<Move3D::confPtr_t> Move3DRosGui::getContext()
     cout << __PRETTY_FUNCTION__ << endl;
 
     std::vector<Move3D::confPtr_t> context;
-    Move3D::confPtr_t q_human_;
 
+
+    Move3D::confPtr_t q_human_;
     if( run_human_backend_ )
     {
+        cout << "get human config" << endl;
+        while( !human_joint_state_->is_refreshed() )
+            usleep(100000); // TODO make it better
         q_human_ = human_joint_state_->get_current_conf();
     }
     else
@@ -142,8 +148,30 @@ std::vector<Move3D::confPtr_t> Move3DRosGui::getContext()
         else
             q_human_ = human->getCurrentPos();
     }
-
     context.push_back( q_human_ );
+
+
+    Move3D::confPtr_t q_robot_;
+    if( run_robot_backend_ )
+    {
+        cout << "get backend config" << endl;
+        while( !robot_backend_->is_refreshed() )
+            usleep(100000); // TODO make it better
+        q_robot_ = robot_backend_->get_current_conf();
+    }
+    else
+    {
+        Move3D::Robot* robot = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
+        if( robot == NULL )
+        {
+            ROS_ERROR("No ROBOT in Move3D");
+            return std::vector<Move3D::confPtr_t>();
+        }
+        else
+            q_robot_ = robot->getCurrentPos();
+    }
+    context.push_back( q_robot_ );
+
     return context;
 }
 
@@ -204,7 +232,7 @@ void Move3DRosGui::startNode()
 
     ros::NodeHandle nhp("~");
     nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(false));
-    nhp.param(std::string("run_robot_backend"),    run_robot_backend_,      bool(false));
+    nhp.param(std::string("run_robot_backend"),  run_robot_backend_,    bool(false));
     nhp.param(std::string("run_replanning"),     run_replanning_,       bool(false));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));

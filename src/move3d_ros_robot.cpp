@@ -75,6 +75,9 @@ Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
     joint_state_rate_ = 30;
     joint_state_received_ = 0;
     draw_rate_ = 10; // draws only the 10th time
+
+    // Set to true when got data
+    is_refreshed_ = false;
 }
 
 Move3DRosRobot::~Move3DRosRobot()
@@ -143,7 +146,7 @@ void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControll
                                  std::vector<std::string> joint_names,
                                  std::vector<int> dof_ids)
 {
-//    cout << __PRETTY_FUNCTION__ << endl;
+    // cout << __PRETTY_FUNCTION__ << endl;
 
     if( joint_names.empty() ){
         ROS_ERROR("Active joint names not set");
@@ -189,6 +192,11 @@ void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControll
     }
 
     q_cur_->setFromEigenVector( new_arm_config, dof_ids );
+
+    // cout << "update_robot_ : " << update_robot_ << endl;
+
+    // Set to true when got data
+    is_refreshed_ = true;
 
     if( update_robot_ )
     {
@@ -280,11 +288,11 @@ void Move3DRosRobot::executeLoadedMotionsThread()
 //            return;
 //        }
 
-        executeMove3DTrajectory( move3d_trajs_[i] );
+        executeMove3DTrajectory( move3d_trajs_[i], true );
     }
 }
 
-void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj)
+void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait)
 {
     cout << " **************************************"<< endl;
     cout << __PRETTY_FUNCTION__ << endl;
@@ -355,10 +363,13 @@ void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj)
     // Command the arm
     active_arm_client_->sendGoal( command );
 
-    // Wait until end of execution
-    while(!active_arm_client_->getState().isDone() && ros::ok())
+    if( wait )
     {
-        usleep(50000);
+        // Wait until end of execution
+        while(!active_arm_client_->getState().isDone() && ros::ok())
+        {
+            usleep(50000);
+        }
     }
 }
 
@@ -478,5 +489,6 @@ bool Move3DRosRobot::run_pr2_backend(ros::NodeHandle* nh)
                                                                                    boost::bind( &Move3DRosRobot::GetJointState, this, _1,
                                                                                                 left_arm_joint_names_, left_arm_dof_ids_ ) );
 
+    ROS_INFO("Subscribed to JointTrajectoryControllerState");
     return true;
 }

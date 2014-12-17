@@ -51,6 +51,8 @@ public:
     bool subscribe_to_joint_angles(ros::NodeHandle* nh);
     Move3D::confPtr_t get_current_conf();
 
+    bool is_refreshed() { return is_refreshed_; }
+
 
 signals:
 
@@ -65,11 +67,15 @@ private:
     int draw_rate_;
     bool update_robot_;
     int joint_state_received_;
-    std::string topic_name_;
+
     void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
+
+    std::string topic_name_;
+    boost::mutex io_mutex_;
+    bool is_refreshed_;
+
     ros::Subscriber sub_;
     ros::NodeHandle* nh_;
-    boost::mutex io_mutex_;
 };
 
 #endif // MOVE3D_ROS_HUMAN_HPP

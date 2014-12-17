@@ -62,7 +62,7 @@ public:
     void startNode();
 
     std::vector<Move3D::confPtr_t> getContext();
-    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time);
+    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time );
 
 public slots:
 

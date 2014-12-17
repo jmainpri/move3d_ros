@@ -54,7 +54,7 @@ public:
     bool run_pr2_backend(ros::NodeHandle* nh);
 
     void executeElementaryMotion(Move3D::confPtr_t q_target);
-    void executeMove3DTrajectory(const Move3D::Trajectory& traj);
+    void executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait);
     void executeLoadedMotionsThread();
     void loadMotions(std::string folder);
     void setActiveArm(arm_t arm);
@@ -66,6 +66,8 @@ public:
     Move3D::Robot* getRobot() { return robot_; }
 
     Move3D::confPtr_t get_current_conf();
+
+    bool is_refreshed() { return is_refreshed_; }
 
 signals:
 
@@ -91,6 +93,7 @@ private:
     std::vector<int> left_arm_dof_ids_;
     std::vector<int> active_dof_ids_;
 
+    bool is_refreshed_;
     boost::mutex io_mutex_;
 
     Move3D::Robot* robot_;

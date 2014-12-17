@@ -45,7 +45,7 @@ public:
     ~Move3DRosReplanning();
 
     bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct) { get_context_ = fct; }
-    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time)> fct) { send_trajectory_ = fct; }
+    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time )> fct) { send_trajectory_ = fct; }
 
     void run();
 
@@ -62,7 +62,7 @@ private:
     Move3D::Robot* robot_;
     Move3D::Joint* draw_joint_;
 
-    bool m_is_running;
+    bool send_to_robot_;
 
     int draw_rate_;
     bool draw_execute_motion_;
@@ -79,6 +79,8 @@ private:
     double current_motion_duration_;
     // double current_discretization_; // TODO REMOVE
 
+    double time_last_sent_;
+
     std::vector<Move3D::confPtr_t> context_;
     Move3D::confPtr_t q_init_;
     Move3D::confPtr_t q_goal_;
@@ -87,13 +89,13 @@ private:
     std::vector<int> active_dofs_; // TODO set this in constructor
 
     boost::function<std::vector<Move3D::confPtr_t>(void)> get_context_;
-    boost::function<bool(const Move3D::Trajectory& trajectory, double time)> send_trajectory_;
+    boost::function<bool(const Move3D::Trajectory& trajectory, double time )> send_trajectory_;
 
     void runReplanning();
     bool runStandardStomp( int iter );
     void execute( const Move3D::Trajectory& trajectory );
-    bool updateContext();
-    bool initReplanning( Move3D::confPtr_t q_goal );
+    bool updateContext( bool update_robot );
+    bool initReplanning( Move3D::confPtr_t q_goal, bool update );
     void setActiveDofs();
     bool processTime() const;
 };

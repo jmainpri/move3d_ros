@@ -9,6 +9,9 @@
   <arg name="sce" default="-sc $(find move3d_ros)/assets/Collaboration/SCENARIOS/collaboration_test_pr2_aterm.sce" />
   <arg name="guiparams" default="-setgui -not_rel_home -params $(find move3d_ros)/guiparams/pr2_collaboration_aterm " />
   <arg name="draw_human_update" default="true" />
+  <arg name="draw_robot_update" default="true" />
+  <arg name="run_human_tracking" default="true" />
+  <arg name="run_robot_backend" default="false" />
   <arg name="run_replanning" default="false" />
 
   <!-- INCLUDE OTHER FILE
@@ -17,10 +20,13 @@
 
   <!-- Start the left arm controller -->
   <node pkg="move3d_ros" type="move3d_ros_node" name="move3d_pr2" output="$(arg output)" args="$(arg file) $(arg guiparams) $(arg sce)">
-    <param name="run_human_tracking" value="true" />
-    <param name="run_robot_backend" value="false" />
-    <param name="run_replanning" value="$(arg run_replanning)" />
+
     <param name="draw_human_update" value="$(arg draw_human_update)" />
+    <param name="draw_robot_update" value="$(arg draw_robot_update)" />
+    <param name="run_human_tracking" value="$(arg run_human_tracking)" />
+    <param name="run_robot_backend" value="$(arg run_robot_backend)" />
+    <param name="run_replanning" value="$(arg run_replanning)" />
+
   </node>
 
 </launch>

@@ -64,6 +64,8 @@ Move3DRosReplanning::Move3DRosReplanning(QWidget *parent)
     draw_rate_ = 10; // draws only the 10th time
     draw_execute_motion_ = false;
 
+    send_to_robot_ = true;
+
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
 }
@@ -73,21 +75,21 @@ Move3DRosReplanning::~Move3DRosReplanning()
 
 }
 
-bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal)
+bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal, bool update)
 {
     if( robot_ == NULL ){
         ROS_ERROR("No Move3D robot selected");
         return false;
     }
 
-    if( !updateContext() ){
+    if( !updateContext(update) ){
         ROS_ERROR("Could not update context");
         return false;
     }
 
     // GET STORED CONFIGURATIONS
-    q_goal_ = q_goal->copy();
     q_init_ = robot_->getCurrentPos();
+    q_goal_ = q_goal->copy();
 
     // Set draw joint
     draw_joint_ = robot_->getJoint( ENV.getInt(Env::jntToDraw) );
@@ -146,7 +148,7 @@ bool Move3DRosReplanning::processTime() const
     return true;
 }
 
-bool Move3DRosReplanning::updateContext()
+bool Move3DRosReplanning::updateContext(bool update_robot)
 {
     try
     {
@@ -160,9 +162,16 @@ bool Move3DRosReplanning::updateContext()
     for( size_t i=0; i<int(context_.size()); i++ )
     {
         Move3D::Robot* robot = context_[i]->getRobot();
+        if( !update_robot && ( robot == robot_ ) ) // Do not update robot when update_robot is false
+                continue;
+
+        cout << "UPDATE ROBOT : " << robot->getName() << endl;
+
         Move3D::confPtr_t q = context_[i]->copy();
         robot->setAndUpdate(*q);
     }
+
+    g3d_draw_allwin_active();
     return true;
 }
 
@@ -196,25 +205,25 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
 
         traj_optim_set_use_extern_trajectory( true );
         traj_optim_set_extern_trajectory( optimi_traj );
-    }
 
-    // Set buffer for smoothness computation
-    if( path_.size() > 0 && time_along_current_path_ > 0.0 )
-    {
-        setActiveDofs();
+        // Set buffer for smoothness computation
+        if( time_along_current_path_ > 0.0 )
+        {
+            setActiveDofs();
 
-        double dt = current_motion_duration_ / double(nb_way_points);
-        std::vector<Eigen::VectorXd> buffer;
-        int nb_config = 7;
-        for(int i=0; i<nb_config; i++){
-            Move3D::confPtr_t q = path_.configAtTime( time_along_current_path_-double(nb_config-i)*dt );
-            buffer.push_back( q->getEigenVector( active_dofs_ ) );
-        }
-        traj_optim_set_buffer( buffer );
+            double dt = current_motion_duration_ / double(nb_way_points);
+            std::vector<Eigen::VectorXd> buffer;
+            int nb_config = 7;
+            for(int i=0; i<nb_config; i++){
+                Move3D::confPtr_t q = path_.configAtTime( time_along_current_path_-double(nb_config-i)*dt );
+                buffer.push_back( q->getEigenVector( active_dofs_ ) );
+            }
+            traj_optim_set_buffer( buffer );
 
-        if( !q_init_->equal( *path_.configAtTime( time_along_current_path_ ) ) ){
-            ROS_ERROR("No Move3D human selected");
-            return false;
+            if( !q_init_->equal( *path_.configAtTime( time_along_current_path_ ) ) ){
+                ROS_ERROR("No Move3D human selected");
+                return false;
+            }
         }
     }
 
@@ -223,7 +232,7 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     // SET PLANNING STOP CONDITIONS
     traj_optim_set_use_iteration_limit(false);
     PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
-    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, time_step_ - 0.02 );
+    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, time_step_ - 0.17 ); // TODO fix that automatically
 
     // PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, false );
     // traj_optim_set_use_iteration_limit(true);
@@ -321,6 +330,16 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     // Set last configuration as q_init_
     q_init_ = q;
 
+    // Use robot backend
+    if( send_to_robot_ )
+        send_trajectory_( path_, 0.0 );
+
+    double secs = ros::Time::now().toSec();
+    if( time_last_sent_ != -1. )
+        cout << "TIME DELTA : " << secs - time_last_sent_ << endl;
+
+    time_last_sent_ = secs;
+
     cout << "End execute" << endl;
 }
 
@@ -355,14 +374,16 @@ void Move3DRosReplanning::runReplanning()
 
         for(int j=0; j<sequence.size(); j++ )
         {
-            initReplanning( sequence[j] );
-
+            initReplanning( sequence[j], j == 0 );
             robot_->setAndUpdate( *q_init_ );
 
             ROS_INFO("STOMP NEW ITERATION");
+            time_last_sent_ = -1.;
 
-            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext() && processTime(); i++ )
+            for(int i=0;(!PlanEnv->getBool(PlanParam::stopPlanner)) && updateContext(false) && processTime(); i++ )
             {
+
+
                 if(!runStandardStomp( i ))
                 {
                     ROS_ERROR("STOMP ERROR");
@@ -372,8 +393,6 @@ void Move3DRosReplanning::runReplanning()
                 if( !PlanEnv->getBool(PlanParam::stopPlanner) )
                     execute( path_ );
 
-                g3d_draw_allwin_active();
-
                 cout << "End of iteration " << i << endl;
 
                 // cout << "wait for key" << endl;
@@ -381,8 +400,6 @@ void Move3DRosReplanning::runReplanning()
                 // path_.replaceP3dTraj();
             }
         }
-
-        g3d_draw_allwin_active();
 
         cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
 
