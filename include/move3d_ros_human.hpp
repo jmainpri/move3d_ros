@@ -70,7 +70,6 @@ private:
     ros::Subscriber sub_;
     ros::NodeHandle* nh_;
     boost::mutex io_mutex_;
-
 };
 
 #endif // MOVE3D_ROS_HUMAN_HPP

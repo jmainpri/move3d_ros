@@ -34,6 +34,7 @@
 #include "API/project.hpp"
 #include "API/Device/robot.hpp"
 #include "API/Graphic/drawCost.hpp"
+#include "API/Graphic/drawModule.hpp"
 #include "planner_handler.hpp"
 #include "planner/plannerSequences.hpp"
 #include "planner/TrajectoryOptim/trajectoryOptim.hpp"
@@ -89,21 +90,42 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal)
     q_init_ = robot_->getCurrentPos();
 
     // Set draw joint
-    draw_joint_ = robot_->getJoint( 45 );
+    draw_joint_ = robot_->getJoint( ENV.getInt(Env::jntToDraw) );
 
     // INITIALIZE REPLANNING
     // current_human_traj_.resize( 0, 0 ); TODO add it for gathering data
-    executed_trajectory_ = Move3D::Trajectory(robot_);
+    executed_trajectory_ = Move3D::Trajectory( robot_ );
     executed_trajectory_.setUseTimeParameter( true );
     executed_trajectory_.setUseConstantTime( false );
     executed_trajectory_.push_back( q_init_, 0.0 );
     current_time_ = 0.0;
-    time_step_ = 0.1; // Simulation step
+    time_step_ = 0.8; // Simulation step
     global_discretization_ = 0.01; // time betweem configurations (choose a number that divides the simulation time step)
     time_along_current_path_ = 0.0;
     end_planning_ = false;
+    current_motion_duration_ = 5.0; // General timelength between waypoints
+    motion_duration_ = 5.0;
+
+    // Clear trajectory to draw
+    global_linesToDraw.clear();
+
+    if( global_DrawModule )
+    {
+        global_DrawModule->addDrawFunction( "Draw3DTrajs", boost::bind( &g3d_draw_3d_lines ) );
+        global_DrawModule->enableDrawFunction( "Draw3DTrajs" );
+    }
 
     return true;
+}
+
+void Move3DRosReplanning::setActiveDofs()
+{
+     active_dofs_.clear();
+
+    std::vector<int> active_joints = traj_optim_get_active_joints();
+
+    for(int i=0; i<active_joints.size(); i++ )
+        active_dofs_.push_back( robot_->getJoint(i)->getIndexOfFirstDof() );
 }
 
 bool Move3DRosReplanning::updateContext()
@@ -156,21 +178,11 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
         traj_optim_set_extern_trajectory( optimi_traj );
     }
 
-    double traj_duration = current_motion_duration_ > 0.0 ? current_motion_duration_ : 0.1;
-
-    // SET PLANNING STOP CONDITIONS
-//    PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
-//    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, traj_duration - 0.02 );
-
-    traj_optim_set_use_iteration_limit(false);
-    traj_optim_set_use_iteration_limit(true);
-    traj_optim_set_iteration_limit( PlanEnv->getInt(PlanParam::stompMaxIteration) );
-
-    PlanEnv->setDouble( PlanParam::trajDuration, traj_duration  );
-
     // Set buffer for smoothness computation
     if( path_.size() > 0 && time_along_current_path_ > 0.0 )
     {
+        setActiveDofs();
+
         double dt = current_motion_duration_ / double(nb_way_points);
         std::vector<Eigen::VectorXd> buffer;
         int nb_config = 7;
@@ -186,6 +198,20 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
         }
     }
 
+    double traj_duration = current_motion_duration_ > 0.0 ? current_motion_duration_ : 0.1;
+
+    // SET PLANNING STOP CONDITIONS
+    traj_optim_set_use_iteration_limit(false);
+    PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, true );
+    PlanEnv->setDouble(PlanParam::trajStompTimeLimit, time_step_ - 0.02 );
+
+    // PlanEnv->setBool(PlanParam::trajStompWithTimeLimit, false );
+    // traj_optim_set_use_iteration_limit(true);
+    // traj_optim_set_iteration_limit( PlanEnv->getInt(PlanParam::stompMaxIteration) );
+
+    cout << "traj duration : " << traj_duration << endl;
+    PlanEnv->setDouble( PlanParam::trajDuration, traj_duration  );
+
     traj_optim_resetInit();
     traj_optim_reset_collision_space();
     traj_optim_add_human_to_collision_space(true);
@@ -193,79 +219,13 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     traj_optim_runStomp(0);
 
     path_ = global_optimizer->getBestTraj();
-    cout << "path.getUseTimeParameter() : " << path_.getUseTimeParameter() << endl;
+
+    if( !path_.getUseTimeParameter() )
+    {
+        ROS_ERROR("path is not time parametrized");
+    }
     return true;
 }
-
-/**
-void Move3DRosReplanning::execute(const Move3D::Trajectory& path, bool to_end)
-{
-//    path.replaceP3dTraj();
-
-    if( path.getUseTimeParameter() )
-        current_discretization_ = path.getDeltaTime();
-    else
-        current_discretization_ = current_motion_duration_ / double( path.getNbOfPaths() );
-
-    Move3D::confPtr_t q;
-
-    double time_factor = 10; // Slow down execution by factor
-
-    int nb_configs = time_step_ / global_discretization_; // global_discretization_ must be a multiple of time step
-    double t = 0;
-
-    for( int i=0; i<nb_configs; i++ )
-    {
-        // Find configurations of active human along the trajectory
-        t += global_discretization_;
-        q = path.configAtTime( t );
-        robot_->setAndUpdate( *q );
-
-        // Add the configuration to the trajectory
-        executed_trajectory_.push_back( q, global_discretization_ );
-
-        // If the time exceeds the trajectory length
-        // inferior to a hundredth of a second
-        if( ( motion_duration_ - ( t + current_time_ ) ) < global_discretization_  )
-        {
-            end_planning_ = true;
-            break;
-        }
-        if( draw_execute_motion_ )
-        {
-            drawAllWinActive();
-            usleep( floor( global_discretization_ * 1e6 * time_factor ) );
-        }
-    }
-
-    // If duration left is inferior to half a time step do not replan
-    if( ( motion_duration_ - ( t + current_time_ ) ) <= (time_step_/2.) )
-    {
-        while( motion_duration_ - ( t + current_time_ ) > global_discretization_ )
-        {
-            t += global_discretization_;
-            q = path.configAtTime( t );
-            executed_trajectory_.push_back( q, global_discretization_ );
-        }
-        end_planning_ = true;
-    }
-
-    // Add the end configuration
-    if( end_planning_ ) {
-        double dt = motion_duration_ - ( t + current_time_ );
-        t += dt;
-        executed_trajectory_.push_back( q_goal_->copy(), dt );
-    }
-
-    time_along_current_path_ = t;
-    current_time_ += time_along_current_path_;
-    current_motion_duration_ -= time_along_current_path_;
-
-    q_init_ = q;
-
-    cout << "End execute" << endl;
-}
-*/
 
 void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
 {
@@ -277,10 +237,19 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     int nb_configs = time_step_ / global_discretization_; // global_discretization_ must be a multiple of time step
     double t = 0;
 
+//    cout << "path time length : " << path_.getTimeLength() << endl;
+//    cout << "path number of waypoints : " << path_.getNbOfViaPoints() << endl;
+//    cout << "nb_configs : " << nb_configs << endl;
+
     for( int i=0; i<nb_configs; i++ )
     {
         // Find configurations of active human along the trajectory
         t += global_discretization_;
+
+        // Get config at time on trajectory
+        q = path.configAtTime( t );
+
+        //cout << "append configuration (t = " << t << ")" << endl;
 
         // Add the configuration to the trajectory
         executed_trajectory_.push_back( path.configAtTime( t ), global_discretization_ );
@@ -316,9 +285,17 @@ void Move3DRosReplanning::execute(const Move3D::Trajectory& path )
     current_time_ += time_along_current_path_;
     current_motion_duration_ -= time_along_current_path_;
 
-    global_linesToDraw.push_back( std::make_pair( Eigen::Vector3d(1, 0, 0), path.getJointPoseTrajectory( draw_joint_ ) ) );
-
+    // Set last configuration as q_init_
     q_init_ = q;
+
+    // Add trajectory to draw
+    if( draw_joint_ != NULL )
+    {
+        global_linesToDraw.clear();
+        global_linesToDraw.push_back( std::make_pair( Eigen::Vector3d(1, 0, 0), path.getJointPoseTrajectory( draw_joint_ ) ) );
+    }
+    else
+        cout << "cannot draw trajectory" << endl;
 
     cout << "End execute" << endl;
 }

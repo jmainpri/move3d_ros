@@ -65,6 +65,7 @@ public:
 
     Move3D::Robot* getRobot() { return robot_; }
 
+    Move3D::confPtr_t get_current_conf();
 
 signals:
 
@@ -90,6 +91,7 @@ private:
     std::vector<int> left_arm_dof_ids_;
     std::vector<int> active_dof_ids_;
 
+    boost::mutex io_mutex_;
 
     Move3D::Robot* robot_;
     Move3D::confPtr_t q_cur_;

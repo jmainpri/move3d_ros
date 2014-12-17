@@ -93,6 +93,7 @@ private:
     void execute( const Move3D::Trajectory& trajectory );
     bool updateContext();
     bool initReplanning( Move3D::confPtr_t q_goal );
+    void setActiveDofs();
 };
 
 #endif // MOVE3D_ROS_REPLANNING_HPP

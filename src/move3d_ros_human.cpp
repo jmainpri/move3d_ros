@@ -101,9 +101,7 @@ bool Move3DRosHuman::initHuman()
 Move3D::confPtr_t Move3DRosHuman::get_current_conf()
 {
     boost::mutex::scoped_lock lock(io_mutex_);
-
-    // TODO make thread safe get config
-    return robot_->getNewConfig();
+    return q_cur_->copy();
 }
 
 //static int joint_state_received=0;
@@ -182,6 +180,9 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
         //    cout << "dof_ids[" << i << "]: " << dof_ids[i] << endl;
 
         q_cur_->setFromEigenVector( new_arm_config, dof_ids );
+
+        // TODO REMOVE ONE ARM MODEL
+        (*q_cur_)[robot_->getJoint("lShoulderX")->getIndexOfFirstDof()] = -M_PI/2; // Add one for time
 
         if( update_robot_ )
         {

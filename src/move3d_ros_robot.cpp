@@ -133,6 +133,12 @@ void Move3DRosRobot::initPr2()
     q_cur_ = robot_->getInitPos();
 }
 
+Move3D::confPtr_t Move3DRosRobot::get_current_conf()
+{
+    boost::mutex::scoped_lock lock(io_mutex_);
+    return q_cur_->copy();
+}
+
 void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config,
                                  std::vector<std::string> joint_names,
                                  std::vector<int> dof_ids)
