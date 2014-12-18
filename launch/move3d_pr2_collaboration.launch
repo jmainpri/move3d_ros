@@ -8,6 +8,7 @@
   <arg name="file" default="-f $(find move3d_ros)/assets/Collaboration/HumanAndRobotTableMocap.p3d" />
   <arg name="sce" default="-sc $(find move3d_ros)/assets/Collaboration/SCENARIOS/collaboration_test_pr2_aterm.sce" />
   <arg name="guiparams" default="-setgui -not_rel_home -params $(find move3d_ros)/guiparams/pr2_collaboration_aterm " />
+
   <arg name="draw_human_update" default="true" />
   <arg name="draw_robot_update" default="true" />
   <arg name="run_human_tracking" default="true" />

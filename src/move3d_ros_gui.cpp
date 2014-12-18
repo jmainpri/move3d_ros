@@ -67,6 +67,7 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
     connect(ui_->pushButtonStart ,     SIGNAL(clicked()), this,SLOT(start()));
     connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
     connect(ui_->pushButtonExecTrajs,  SIGNAL(clicked()), this, SLOT(executeLoadedMotions()));
+    connect(ui_->pushButtonGotoInit,   SIGNAL(clicked()), this, SLOT(gotoInit()));
 
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
@@ -125,7 +126,19 @@ void Move3DRosGui::executeLoadedMotions()
     robot_backend_->executeLoadedMotions();
 }
 
-bool Move3DRosGui::sendTrajectory( const Move3D::Trajectory& trajectory, double time )
+bool Move3DRosGui::gotoInit()
+{
+    if( robot_backend_.get() == NULL )
+    {
+        ROS_ERROR("not initialized");
+        return false;
+    }
+    Move3D::confPtr_t q_init = robot_backend_->get_init_conf();
+    robot_backend_->executeElementaryMotion( q_init );
+    return true;
+}
+
+bool Move3DRosGui::sendTrajectory( const Move3D::Trajectory& trajectory, double time, bool wait )
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
@@ -134,7 +147,7 @@ bool Move3DRosGui::sendTrajectory( const Move3D::Trajectory& trajectory, double 
         ROS_ERROR("robot_backend_ not initialized");
         return false;
     }
-    robot_backend_->executeMove3DTrajectory( trajectory, false );
+    robot_backend_->executeMove3DTrajectory( trajectory, wait );
     return true;
 }
 
@@ -204,6 +217,9 @@ void Move3DRosGui::runReplanning()
     else
         robot = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
 
+    // Do not send trajectories when backend is not ON
+    replanning_->setSendTrajectoriesToBackend( run_robot_backend_ );
+
     if( robot == NULL )
     {
         ROS_ERROR("No ROBOT in Move3D");
@@ -214,7 +230,7 @@ void Move3DRosGui::runReplanning()
 
         replanning_->setRobot( robot );
         replanning_->setGetContextFunction( boost::bind( &Move3DRosGui::getContext, this) );
-        replanning_->setSendTrajectoryFunction( boost::bind( &Move3DRosGui::sendTrajectory, this, _1, _2) );
+        replanning_->setSendTrajectoryFunction( boost::bind( &Move3DRosGui::sendTrajectory, this, _1, _2, _3) );
         replanning_->run();
     }
 }

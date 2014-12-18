@@ -66,6 +66,7 @@ public:
     Move3D::Robot* getRobot() { return robot_; }
 
     Move3D::confPtr_t get_current_conf();
+    Move3D::confPtr_t get_init_conf() { return q_init_; }
 
     bool is_refreshed() { return is_refreshed_; }
 
@@ -98,6 +99,7 @@ private:
 
     Move3D::Robot* robot_;
     Move3D::confPtr_t q_cur_;
+    Move3D::confPtr_t q_init_;
     bool update_robot_;
     std::vector<Move3D::Trajectory> move3d_trajs_;
 

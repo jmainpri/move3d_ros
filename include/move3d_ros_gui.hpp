@@ -62,7 +62,8 @@ public:
     void startNode();
 
     std::vector<Move3D::confPtr_t> getContext();
-    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time );
+    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time, bool wait );
+
 
 public slots:
 
@@ -70,6 +71,8 @@ public slots:
     void setState(module_state_t state);
     void loadMotions();
     void executeLoadedMotions();
+    bool gotoInit();
+
 
 signals:
 

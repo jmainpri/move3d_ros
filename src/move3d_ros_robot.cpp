@@ -68,7 +68,7 @@ Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
 
     // Set robot structure to 0
-    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");;
+    robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
     move3d_trajs_.clear();
 
     // Set all active joint ids and names to 0
@@ -81,6 +81,10 @@ Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
 
     // Set to true when got data
     is_refreshed_ = false;
+
+    // store init pos
+    if( robot_ != NULL )
+        q_init_ = robot_->getInitPos();
 }
 
 Move3DRosRobot::~Move3DRosRobot()
@@ -137,12 +141,15 @@ void Move3DRosRobot::initPr2()
     left_arm_topic_name_    = "/l_arm_controller/state";
 
     q_cur_ = robot_->getInitPos();
+    q_init_ = q_cur_->copy();
 }
 
 Move3D::confPtr_t Move3DRosRobot::get_current_conf()
 {
     boost::mutex::scoped_lock lock(io_mutex_);
-    return q_cur_->copy();
+    Move3D::confPtr_t q_cur = q_cur_->copy();
+    q_cur->adaptCircularJointsLimits();
+    return q_cur;
 }
 
 void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config,
@@ -433,6 +440,8 @@ void Move3DRosRobot::executeElementaryMotion( Move3D::confPtr_t q_target )
     {
         usleep(50000);
     }
+
+    ROS_INFO("robot at config");
 }
 
 void Move3DRosRobot::setActiveArm(arm_t arm)

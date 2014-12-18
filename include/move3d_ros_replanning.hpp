@@ -34,6 +34,7 @@
 #include <ros/ros.h>
 
 #include "API/Device/robot.hpp"
+#include "feature_space/smoothness.hpp"
 
 class Move3DRosReplanning : public QObject
 {
@@ -45,17 +46,19 @@ public:
     ~Move3DRosReplanning();
 
     bool setGetContextFunction(boost::function<std::vector<Move3D::confPtr_t>(void)> fct) { get_context_ = fct; }
-    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time )> fct) { send_trajectory_ = fct; }
-
-    void run();
+    bool setSendTrajectoryFunction(boost::function<bool(const Move3D::Trajectory& trajectory, double time, bool wait )> fct) { send_trajectory_ = fct; }
 
     void setRobot(Move3D::Robot* robot) { robot_ = robot; }
+    void setSendTrajectoriesToBackend(bool send_to_robot) { send_to_robot_ = send_to_robot; }
+
+    void run();
 
 
 signals:
 
     void selectedPlanner(QString);
     void drawAllWinActive();
+
 
 private:
 
@@ -85,12 +88,13 @@ private:
     std::vector<Move3D::confPtr_t> context_;
     Move3D::confPtr_t q_init_;
     Move3D::confPtr_t q_goal_;
+    Move3D::Trajectory robot_trajectory_;
     Move3D::Trajectory executed_trajectory_;
     Move3D::Trajectory path_;
     std::vector<int> active_dofs_; // TODO set this in constructor
 
     boost::function<std::vector<Move3D::confPtr_t>(void)> get_context_;
-    boost::function<bool(const Move3D::Trajectory& trajectory, double time )> send_trajectory_;
+    boost::function<bool(const Move3D::Trajectory& trajectory, double time, bool wait )> send_trajectory_;
 
     void runReplanning();
     bool runStandardStomp( int iter );
@@ -100,6 +104,11 @@ private:
     void setActiveDofs();
     bool processTime() const;
     void saveExecutedTraj(int ith) const;
+
+    // Control cost
+    void checkVelocityConstraints();
+    Move3D::VelocitySmoothness smoothness_;
+    std::vector<Eigen::VectorXd> position_buffer_;
 };
 
 #endif // MOVE3D_ROS_REPLANNING_HPP

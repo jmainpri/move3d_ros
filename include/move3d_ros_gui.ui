@@ -57,7 +57,7 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
+      <item row="3" column="0">
        <widget class="QCheckBox" name="checkBoxRunPr2Backend">
         <property name="text">
          <string>Run backend</string>
@@ -75,6 +75,20 @@
        <widget class="QPushButton" name="pushButtonExecTrajs">
         <property name="text">
          <string>Execute trajs</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="pushButtonGotoInit">
+        <property name="text">
+         <string>Goto Init</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>Goto Init</string>
         </property>
        </widget>
       </item>
