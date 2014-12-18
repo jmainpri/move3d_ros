@@ -67,7 +67,7 @@ Move3DRosReplanning::Move3DRosReplanning(QWidget *parent)
     draw_rate_ = 10; // draws only the 10th time
     draw_execute_motion_ = false;
 
-    send_to_robot_ = false;
+    send_to_robot_ = true;
 
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
@@ -460,6 +460,8 @@ void Move3DRosReplanning::runReplanning()
             }
 
             saveExecutedTraj( j );
+
+            robot_->setAndUpdate( *q_goal_ );
         }
 
         cout << "executed_trajectory_.size() : " << executed_trajectory_.size() << endl;
