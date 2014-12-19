@@ -98,7 +98,7 @@ private:
 
     void runReplanning();
     bool runStandardStomp( int iter );
-    void execute( const Move3D::Trajectory& trajectory );
+    void execute( int iter, Move3D::Trajectory& trajectory );
     bool updateContext( bool update_robot );
     bool initReplanning( Move3D::confPtr_t q_goal, bool update );
     void setActiveDofs();
@@ -106,7 +106,7 @@ private:
     void saveExecutedTraj(int ith) const;
 
     // Control cost
-    void checkVelocityConstraints();
+    double checkVelocityConstraints( Move3D::Trajectory& traj );
     Move3D::VelocitySmoothness smoothness_;
     std::vector<Eigen::VectorXd> position_buffer_;
 };

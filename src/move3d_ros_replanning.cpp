@@ -115,7 +115,7 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal, bool update)
     current_motion_duration_ = 5.0; // General timelength between waypoints
     motion_duration_ = 5.0;
 
-    time_step_ = 1.0; // Simulation step
+    time_step_ = 0.5; // Simulation step
     time_overhead_ = 0.25; // Initial estimate
 
     // Clear trajectory to draw
@@ -128,28 +128,6 @@ bool Move3DRosReplanning::initReplanning(Move3D::confPtr_t q_goal, bool update)
     }
 
     return true;
-}
-
-void Move3DRosReplanning::checkVelocityConstraints()
-{
-    smoothness_.setActiveDoFs( active_dofs_ );
-    smoothness_.setBuffer( position_buffer_ );
-
-    cout << "path_ is constant time : "     << path_.getUseConstantTime() << endl;
-    cout << "path_ time step time : "       << path_.getDeltaTime() << endl;
-    cout << "path_ time length : "          << path_.getTimeLength() << endl;
-    cout << "path_ nb waypoints : "         << path_.getNbOfViaPoints() << endl;
-
-
-    // Eigen::MatrixXd traj_smooth = smoothness_.getSmoothedTrajectory( path_ );
-    // smoothness_.getControlCosts( traj_smooth, control_costs_tmp, dt );
-
-    std::string folder = ros::package::getPath("move3d_ros") + "/data/vel_profiles/";
-    smoothness_.saveAbsValuesToFile( path_, folder, path_.getDeltaTime() );
-
-//    for (int d=0; d<parameters.size(); ++d)
-//        control_costs[1][d] = factor_vel * control_costs_tmp[d];
-//    costs[1] = vel * factor_vel;
 }
 
 void Move3DRosReplanning::setActiveDofs()
@@ -305,10 +283,27 @@ bool Move3DRosReplanning::runStandardStomp( int iter )
     return true;
 }
 
-void Move3DRosReplanning::execute( const Move3D::Trajectory& path )
+void Move3DRosReplanning::execute( int iter, Move3D::Trajectory& path )
 {
     cout << __PRETTY_FUNCTION__ << endl;
 //    path.replaceP3dTraj();
+
+    // Get alpha (slowing factor)
+     double alpha = checkVelocityConstraints( path );
+
+    // Set time correctly
+    if( alpha > 1.)
+    {
+        double new_duration = current_motion_duration_ * alpha;
+        motion_duration_ += new_duration - current_motion_duration_;
+        current_motion_duration_ = new_duration;
+        end_planning_ = true;
+    }
+
+    robot_trajectory_ = Move3D::Trajectory(robot_);
+    robot_trajectory_.setUseTimeParameter( true );
+    robot_trajectory_.setUseConstantTime( false );
+    robot_trajectory_.push_back( q_init_->copy(), 0.0 );
 
     Move3D::confPtr_t q;
 
@@ -350,6 +345,8 @@ void Move3DRosReplanning::execute( const Move3D::Trajectory& path )
         while( motion_duration_ - ( t + current_time_ ) > global_discretization_ )
         {
             t += global_discretization_;
+
+            // Get config at time on trajectory
             q = path.configAtTime( t );
 
             // Add to robot trajectory
@@ -376,10 +373,6 @@ void Move3DRosReplanning::execute( const Move3D::Trajectory& path )
         robot_trajectory_.push_back( q_goal_->copy(), dt );
     }
 
-    time_along_current_path_ = t;
-    current_time_ += time_along_current_path_;
-    current_motion_duration_ -= time_along_current_path_;
-
     // Add trajectory to draw
     if( draw_joint_ != NULL && !ENV.getBool(Env::drawDisabled) )
     {
@@ -389,6 +382,11 @@ void Move3DRosReplanning::execute( const Move3D::Trajectory& path )
     else
         cout << "cannot draw trajectory" << endl;
 
+    // Set time
+    time_along_current_path_ = t;
+    current_time_ += time_along_current_path_;
+    current_motion_duration_ -= time_along_current_path_;
+
     // Set to previous q_init_
     robot_->setAndUpdate( *q_init_ );
 
@@ -396,6 +394,98 @@ void Move3DRosReplanning::execute( const Move3D::Trajectory& path )
     q_init_ = q->copy();
 
     cout << "End execute" << endl;
+}
+
+double Move3DRosReplanning::checkVelocityConstraints( Move3D::Trajectory& traj)
+{
+//      p3d_set_dof_velocity_max      1.5 # 0.522 # max  2.088
+//      p3d_set_dof_velocity_max      1.52 # 0.522  # max 2.082
+//      p3d_set_dof_velocity_max      1.5 # 0.8175   # max 3.27
+//      p3d_set_dof_velocity_max      1.5 # 0.9  # max  3.3
+//      p3d_set_dof_velocity_max      1.5 # 0.9 # max   3.3
+//      p3d_set_dof_velocity_max      1.5 # 0.9 # max   3.078
+//      p3d_set_dof_velocity_max      1.5 # 0.9 # max   3.6
+
+    double secs_1 = ros::Time::now().toSec();
+
+    std::vector<double> vel_limits(7, 0.6); // For pr2
+//    vel_limits[0] = 0.5;
+//    vel_limits[1] = 0.5;
+//    vel_limits[2] = 0.7;
+//    vel_limits[3] = 0.7;
+//    vel_limits[4] = 0.7;
+//    vel_limits[5] = 0.7;
+//    vel_limits[6] = 0.7;
+
+    smoothness_.setActiveDoFs( active_dofs_ );
+    // smoothness_.setBuffer( position_buffer_ );
+    smoothness_.clearBuffer();
+
+    double alpha = 1.;
+    bool vel_ok=true;
+
+    Move3D::Trajectory executed_trajectory_constant_time(robot_);
+
+    double dt_approx = 0.10; // 20Hz
+    double duration = traj.getTimeLength();
+    int nb_config   = duration / dt_approx;
+    double dt       = duration / (nb_config-1);
+
+    executed_trajectory_constant_time = Move3D::Trajectory(robot_);
+    executed_trajectory_constant_time.setUseTimeParameter(true);
+    executed_trajectory_constant_time.setUseConstantTime(true);
+    executed_trajectory_constant_time.setDeltaTime( dt );
+
+    for(int i=0; i<nb_config; i++)
+    {
+        Move3D::confPtr_t q(traj.configAtTime( double(i) * dt ));
+        executed_trajectory_constant_time.push_back( q );
+    }
+
+    for(int i=0;i<100;i++)
+    {
+        vel_ok = true;
+
+        std::vector<Eigen::VectorXd> control_costs;
+        Eigen::MatrixXd traj_smooth = smoothness_.getSmoothedTrajectory( executed_trajectory_constant_time );
+        smoothness_.getControlCosts( traj_smooth, control_costs, alpha * dt );
+
+        for(size_t j=0; j<control_costs.size(); j++)
+        {
+            Eigen::VectorXd coeffs = Eigen::ArrayXd( control_costs[j] ).sqrt();
+
+            // cout << "coeffs [" << j << " ] : " << coeffs.transpose() << endl;
+            // cout << "control_costs [" << j << " ] : " << control_costs[j].transpose() << endl;
+
+            if( coeffs.maxCoeff() > vel_limits[j] )
+            {
+                vel_ok = false;
+                alpha += 2;
+                executed_trajectory_constant_time.setDeltaTime( alpha * dt );
+                break;
+            }
+        }
+
+        if( vel_ok )
+            break;
+    }
+
+    double secs_2 = ros::Time::now().toSec();
+    double delta_time = secs_2 - secs_1;
+
+    cout << "time : " << delta_time << " alpha = " << alpha << endl;
+    // sleep(2);
+
+//    std::ostringstream ss;
+//    ss << std::setfill('0') << std::setw(3) << iter;
+
+//    std::string folder = ros::package::getPath("move3d_ros") + "/data/vel_profiles/traj_" + ss.str() + "/";
+//    smoothness_.saveAbsValuesToFile( executed_trajectory_constant_time, folder, executed_trajectory_constant_time.getDeltaTime() );
+
+    // Set traj to execute
+    traj = executed_trajectory_constant_time;
+
+    return alpha;
 }
 
 void Move3DRosReplanning::saveExecutedTraj(int ith) const
@@ -434,11 +524,36 @@ void Move3DRosReplanning::runReplanning()
     if( !configs.empty() )
     {
         std::vector<Move3D::confPtr_t> sequence;
+
         sequence.push_back( configs[3] );
-        sequence.push_back( configs[0] );
+        sequence.push_back( configs[5] );
         sequence.push_back( configs[3] );
-        sequence.push_back( configs[1] );
+        sequence.push_back( configs[5] );
         sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[5] );
+
+
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[0] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[1] );
+//        sequence.push_back( configs[3] );
+
+
 //        sequence.push_back( configs[0] );
 //        sequence.push_back( configs[3] );
 //        sequence.push_back( configs[1] );
@@ -470,6 +585,9 @@ void Move3DRosReplanning::runReplanning()
                 if( (i > 0) && send_to_robot_ )
                     send_trajectory_( robot_trajectory_, 0.0, end_planning_ );
 
+                // if(i == 3)
+                //    return;
+
                 if( end_planning_ )
                 {
                     ROS_INFO("Rend replanning: end");
@@ -494,17 +612,10 @@ void Move3DRosReplanning::runReplanning()
                     return;
                 }
 
-                checkVelocityConstraints();
-
 //                ros::Duration( time_step_ - time_overhead_ ).sleep();
 
-                robot_trajectory_ = Move3D::Trajectory(robot_);
-                robot_trajectory_.setUseTimeParameter( true );
-                robot_trajectory_.setUseConstantTime( false );
-                robot_trajectory_.push_back( q_init_->copy(), 0.0 );
-
                 if( !PlanEnv->getBool(PlanParam::stopPlanner) )
-                    execute( path_ );
+                    execute( j, path_ );
 
                 cout << "End of replanning step " << i << endl;
 
@@ -524,6 +635,8 @@ void Move3DRosReplanning::runReplanning()
 
                 r.sleep();
             }
+
+            sleep(1);
 
             saveExecutedTraj( j );
 

@@ -68,6 +68,7 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
     connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
     connect(ui_->pushButtonExecTrajs,  SIGNAL(clicked()), this, SLOT(executeLoadedMotions()));
     connect(ui_->pushButtonGotoInit,   SIGNAL(clicked()), this, SLOT(gotoInit()));
+    connect(ui_->pushButtonRunReplanning, SIGNAL(clicked()), this, SLOT(runReplanning()));
 
     connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
     connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);

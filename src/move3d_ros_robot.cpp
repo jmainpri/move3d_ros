@@ -379,6 +379,7 @@ void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj, boo
 
     if( wait )
     {
+        cout << "WAITING" << endl;
         // Wait until end of execution
         while(!active_arm_client_->getState().isDone() && ros::ok())
         {
@@ -408,7 +409,7 @@ void Move3DRosRobot::executeElementaryMotion( Move3D::confPtr_t q_target )
 
     pr2_controllers_msgs::JointTrajectoryGoal command;
 
-    double execution_timestep = 10.0;
+    double execution_timestep = 5.0;
 
     // Populate command
     command.trajectory.joint_names = active_joint_names_;

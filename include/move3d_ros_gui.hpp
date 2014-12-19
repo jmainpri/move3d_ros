@@ -57,7 +57,7 @@ public:
 
     void runPr2Backend();
     void runHumanTracking();
-    void runReplanning();
+
 
     void startNode();
 
@@ -67,6 +67,7 @@ public:
 
 public slots:
 
+    void runReplanning();
     void start();
     void setState(module_state_t state);
     void loadMotions();
