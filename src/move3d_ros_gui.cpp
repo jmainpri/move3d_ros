@@ -260,8 +260,8 @@ void Move3DRosGui::startNode()
     nh_ = new ros::NodeHandle();
 
     ros::NodeHandle nhp("~");
-    nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(false));
-    nhp.param(std::string("run_robot_backend"),  run_robot_backend_,    bool(false));
+    nhp.param(std::string("run_human_tracking"), run_human_backend_,    bool(true));
+    nhp.param(std::string("run_robot_backend"),  run_robot_backend_,    bool(true));
     nhp.param(std::string("run_replanning"),     run_replanning_,       bool(true));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
@@ -281,8 +281,8 @@ void Move3DRosGui::startNode()
     if( run_human_backend_ )
         runHumanTracking();
 
-    if( run_replanning_ )
-        runReplanning();
+//    if( run_replanning_ )
+//        runReplanning();
 
     // Set module state
     setState( online );

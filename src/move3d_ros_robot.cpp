@@ -57,6 +57,7 @@
 #include <sstream>
 
 #include <ros/package.h>
+///#include <tf/transform_listener.h>
 
 using std::cout;
 using std::endl;
@@ -200,6 +201,18 @@ void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControll
         ROS_ERROR("Current robot configuration not initialized");
         return;
     }
+
+    // TODO BASE
+//    try
+//    {
+//        tf::TransformListener listener;
+//        tf::StampedTransform transform;
+//        listener.lookupTransform("/odom_combined", "/base_footprint", ros::Time(0), transform);
+//    }
+//    catch (tf::TransformException ex){
+//        ROS_ERROR("%s",ex.what());
+//        ros::Duration(1.0).sleep();
+//    }
 
     q_cur_->setFromEigenVector( new_arm_config, dof_ids );
 

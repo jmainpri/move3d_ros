@@ -525,48 +525,48 @@ void Move3DRosReplanning::runReplanning()
     {
         std::vector<Move3D::confPtr_t> sequence;
 
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
-        sequence.push_back( configs[3] );
-        sequence.push_back( configs[5] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
+//        sequence.push_back( configs[3] );
+//        sequence.push_back( configs[4] );
 
 
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[0] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[1] );
-//        sequence.push_back( configs[3] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
 
 
-//        sequence.push_back( configs[0] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[1] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[0] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[2] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[0] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[1] );
-//        sequence.push_back( configs[3] );
-//        sequence.push_back( configs[0] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[2] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[1] );
+        sequence.push_back( configs[3] );
+        sequence.push_back( configs[0] );
 
         for(int j=0; j<sequence.size(); j++ )
         {
