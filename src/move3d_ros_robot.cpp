@@ -479,7 +479,7 @@ void Move3DRosRobot::setActiveArm(arm_t arm)
     }
 }
 
-bool Move3DRosRobot::run_pr2_backend(ros::NodeHandle* nh)
+bool Move3DRosRobot::run_pr2_backend(ros::NodeHandle* nh, bool start_backend)
 {
     cout << __PRETTY_FUNCTION__ << endl;
 
@@ -498,14 +498,19 @@ bool Move3DRosRobot::run_pr2_backend(ros::NodeHandle* nh)
         return false;
     }
 
-    // Setup trajectory controller interface
-    right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/r_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for right arm controllers to come up...");
-    right_arm_client_->waitForServer();
+    if( start_backend )
+    {
 
-    left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/l_arm_controller/joint_trajectory_action"), true));
-    ROS_INFO("Waiting for left arm controllers to come up...");
-    left_arm_client_->waitForServer();
+        // Setup trajectory controller interface
+        right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/r_arm_controller/joint_trajectory_action"), true));
+        ROS_INFO("Waiting for right arm controllers to come up...");
+        right_arm_client_->waitForServer();
+
+        left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/l_arm_controller/joint_trajectory_action"), true));
+        ROS_INFO("Waiting for left arm controllers to come up...");
+        left_arm_client_->waitForServer();
+
+    }
 
     // SET ACTIVE ARM
     setActiveArm( right );

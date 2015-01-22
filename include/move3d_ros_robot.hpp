@@ -51,7 +51,7 @@ public:
 
     void initPr2();
     void setUpdate(bool update) { update_robot_= update; }
-    bool run_pr2_backend(ros::NodeHandle* nh);
+    bool run_pr2_backend(ros::NodeHandle* nh, bool start_backend);
 
     void executeElementaryMotion(Move3D::confPtr_t q_target);
     void executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait);

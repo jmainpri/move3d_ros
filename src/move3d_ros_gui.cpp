@@ -248,7 +248,7 @@ void Move3DRosGui::runHumanTracking()
 void Move3DRosGui::runPr2Backend()
 {
     cout << __PRETTY_FUNCTION__ << endl;
-    robot_backend_->run_pr2_backend( nh_ );
+    robot_backend_->run_pr2_backend( nh_, false );
     robot_backend_->setUpdate( draw_robot_update_ );
 }
 
@@ -267,6 +267,10 @@ void Move3DRosGui::startNode()
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
     // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
     // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
+
+    cout << "draw_human_update_ : " << draw_human_update_ << endl;
+    cout << "draw_robot_update_ : " << draw_robot_update_ << endl;
+
 
     ui_->checkBoxRunHumanBackEnd->setChecked(   run_human_backend_ );
     ui_->checkBoxRunPr2Backend->setChecked(     run_robot_backend_ );

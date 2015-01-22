@@ -1,0 +1,19 @@
+<launch>
+
+  <arg name="output" default="screen"/>
+  <arg name="draw_human_update" value="true" />
+  <arg name="draw_robot_update" value="true" />
+  <arg name="run_robot_backend" value="true" />
+  <arg name="run_human_tracking" default="true" />
+  <arg name="run_replanning" value="false" />
+
+  <!-- Run motion planning and GUI -->
+  <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
+    <arg name="draw_human_update" 	value="$(arg draw_human_update)" />
+    <arg name="draw_robot_update" 	value="$(arg draw_robot_update)" />
+    <arg name="run_robot_backend" 	value="$(arg run_robot_backend)" />
+    <arg name="run_human_tracking" 	value="$(arg run_human_tracking)" />
+    <arg name="run_replanning" 		value="$(arg run_replanning)" />
+  </include>
+
+</launch>
