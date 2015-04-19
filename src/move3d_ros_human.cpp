@@ -112,6 +112,8 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
 {
     // cout << __PRETTY_FUNCTION__ << endl;
 
+    cout << "human time stamp : "  << joint_config->header.stamp.toSec() << endl;
+
     if( robot_ == NULL ) {
         ROS_ERROR("Human model not initialized");
         return;
@@ -217,6 +219,11 @@ void Move3DRosHuman::GetJointState( sensor_msgs::JointState::ConstPtr joint_conf
     // arm_config_watchdog_ = nh_.createTimer(ros::Duration(watchdog_timeout_), &MocapServoingController::ArmConfigWatchdogCB, this, true);
 }
 
+void Move3DRosHuman::GetMarkers( lightweight_vicon_bridge::MocapMarkerArray::ConstPtr markers )
+{
+    cout << "markers time stamp : "  << markers->header.stamp.toSec() << endl;
+}
+
 bool Move3DRosHuman::subscribe_to_joint_angles(ros::NodeHandle* nh)
 {
     cout << __PRETTY_FUNCTION__ << endl;
@@ -228,8 +235,12 @@ bool Move3DRosHuman::subscribe_to_joint_angles(ros::NodeHandle* nh)
     }
 
     nh_ = nh;
+
     cout << "Subscribe to topic : " << topic_name_ << endl;
-    sub_ = nh_->subscribe<sensor_msgs::JointState>( topic_name_, 1, boost::bind( &Move3DRosHuman::GetJointState, this, _1) );
+    sub_angles_ = nh_->subscribe<sensor_msgs::JointState>( topic_name_, 1, boost::bind( &Move3DRosHuman::GetJointState, this, _1) );
+
+    cout << "Subscribe to topic : " << topic_name_ << endl;
+    sub_markers_ = nh_->subscribe<lightweight_vicon_bridge::MocapMarkerArray>( "/mocap_markers", 1, boost::bind( &Move3DRosHuman::GetMarkers, this, _1) );
     // Subscribe to get current posture
     return true;
 }

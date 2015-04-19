@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   control_msgs
   sensor_msgs
+  lightweight_vicon_bridge
+  image_transport
+  cv_bridge
 )
 
 find_package(cmake_modules REQUIRED)
@@ -84,7 +87,7 @@ find_package(cmake_modules REQUIRED)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include CATKIN_DEPENDS control_msgs roscpp rospy roslib std_msgs trajectory_msgs sensor_msgs actionlib DEPENDS system_lib Eigen)
+catkin_package(INCLUDE_DIRS include CATKIN_DEPENDS control_msgs roscpp rospy roslib std_msgs trajectory_msgs sensor_msgs actionlib lightweight_vicon_bridge DEPENDS system_lib Eigen)
 
 ###########
 ## Build ##
@@ -159,6 +162,13 @@ Move3D_flag( PQP "Compilation with technical widget" ON)
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
+
+
+#-------------- OpenCV ---------------------------------------------------------
+
+find_package(OpenCV)
+include_directories(${OpenCV_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${OpenCV_LIBRARIES})
 
 #-------------- Eigen ----------------------------------------------------------
 
@@ -248,7 +258,8 @@ IF(QT_LIBRARY)
                                 include/move3d_ros_gui.hpp 
                                 include/move3d_ros_human.hpp
                                 include/move3d_ros_replanning.hpp
-                                include/move3d_ros_robot.hpp)
+                                include/move3d_ros_robot.hpp
+                                include/move3d_ros_camera.hpp)
 
 
 ENDIF(QT_LIBRARY)
@@ -340,6 +351,7 @@ add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp
                             src/move3d_ros_human.cpp
                             src/move3d_ros_replanning.cpp
                             src/move3d_ros_robot.cpp
+                            src/move3d_ros_camera.cpp
                             ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS})
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

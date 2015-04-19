@@ -31,6 +31,7 @@
 #include "qtLibrary.hpp"
 
 #include <sensor_msgs/JointState.h>
+#include <lightweight_vicon_bridge/MocapMarkerArray.h>
 #include <ros/ros.h>
 
 #include "API/Device/robot.hpp"
@@ -69,12 +70,14 @@ private:
     int joint_state_received_;
 
     void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
+    void GetMarkers( lightweight_vicon_bridge::MocapMarkerArray::ConstPtr markers );
 
     std::string topic_name_;
     boost::mutex io_mutex_;
     bool is_refreshed_;
 
-    ros::Subscriber sub_;
+    ros::Subscriber sub_angles_;
+    ros::Subscriber sub_markers_;
     ros::NodeHandle* nh_;
 };
 

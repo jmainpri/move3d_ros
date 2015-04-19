@@ -159,6 +159,8 @@ void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControll
 {
     // cout << __PRETTY_FUNCTION__ << endl;
 
+    cout << "robot time stamp : "  << joint_config->header.stamp.toSec() << endl;
+
     if( joint_names.empty() ){
         ROS_ERROR("Active joint names not set");
         return;
