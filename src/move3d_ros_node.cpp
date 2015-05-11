@@ -405,17 +405,16 @@ int Main_threads::run(int argc, char** argv)
     bool launch_script=false;
     string script_id;
 
-    //mtrace();
+    bool start_node=false;
 
-    // Remove 2 last argument from ros
-    string node_name = argv[0];
-    argc -= 2;
+    //mtrace();
 
     // Find if a file is passed as argument and set openFileDialog mode
     // Also check for nogui mode
     while (ith_arg < argc)
     {
         cout << "argv[" << ith_arg << "] : " << argv[ith_arg] << endl;
+
         if (string(argv[ith_arg]) == "-nogui")
         {
             noGui = true;
@@ -433,7 +432,6 @@ int Main_threads::run(int argc, char** argv)
         if (string(argv[ith_arg]) == "-f")
         {
             openFileDialog = false;
-            break;
         }
         if (string(argv[ith_arg]) == "-launch")
         {
@@ -446,7 +444,24 @@ int Main_threads::run(int argc, char** argv)
             }
         }
 
+        // Special argument for move3d_ros_node
+        if (string(argv[ith_arg]) == "-startnode")
+        {
+            start_node = true;
+        }
+
         ith_arg++;
+    }
+
+    // Remove 2 last argument from ros
+    string node_name = argv[0];
+    argc = argc - 2;
+
+    // Special case for node arguments to be set after move3d arguments
+    if( start_node == true )
+    {
+        cout << "reduce number of args" << endl;
+        argc = argc - 1;
     }
 
     // The no gui mode can start the application on a distant
@@ -498,6 +513,7 @@ int Main_threads::run(int argc, char** argv)
         }
     }
     else {
+        cout << "replace arguments with tmp" << endl;
         argc_tmp = argc;
         argv_tmp = argv;
     }
@@ -546,6 +562,13 @@ int Main_threads::run(int argc, char** argv)
             QString script( script_id.c_str() );
             QMetaObject::invokeMethod(global_plannerHandler,"startPlanner",Qt::QueuedConnection,Q_ARG(QString, script));
         }
+    }
+
+    QWidget* tab = global_w->getTab("ROS GUI");
+    if( tab )
+    {
+        cout << "EMIT START NODE" << endl;
+        emit static_cast<Move3DRosGui*>(tab)->start();
     }
 
     //	while (true) {

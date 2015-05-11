@@ -347,12 +347,15 @@ include_directories(
 ## Declare a cpp library
 # add_library(move3d_ros src/${PROJECT_NAME}/move3d_ros.cpp )
 
+# Local directory
+file(GLOB_RECURSE INC_ALL "include/*.hpp")
+
 add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp
                             src/move3d_ros_human.cpp
                             src/move3d_ros_replanning.cpp
                             src/move3d_ros_robot.cpp
                             src/move3d_ros_camera.cpp
-                            ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS})
+                            ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS} ${INC_ALL})
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${LIBS})

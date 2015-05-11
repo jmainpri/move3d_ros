@@ -64,7 +64,7 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
 {
     ui_->setupUi(this);
 
-    connect(ui_->pushButtonStart ,     SIGNAL(clicked()), this,SLOT(start()));
+    connect(ui_->pushButtonStart ,      SIGNAL(clicked()), this,SLOT(start()));
     connect(ui_->pushButtonLoadTrajs,  SIGNAL(clicked()), this, SLOT(loadMotions()));
     connect(ui_->pushButtonExecTrajs,  SIGNAL(clicked()), this, SLOT(executeLoadedMotions()));
     connect(ui_->pushButtonGotoInit,   SIGNAL(clicked()), this, SLOT(gotoInit()));
@@ -265,6 +265,7 @@ void Move3DRosGui::startNode()
     nhp.param(std::string("run_replanning"),     run_replanning_,       bool(true));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
+
     // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
     // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
 
@@ -287,6 +288,7 @@ void Move3DRosGui::startNode()
 
 //    if( run_replanning_ )
 //        runReplanning();
+
 
     // Set module state
     setState( online );
