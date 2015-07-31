@@ -6,6 +6,7 @@
   <arg name="run_robot_backend" value="true" />
   <arg name="run_human_tracking" default="true" />
   <arg name="run_replanning" value="false" />
+  <arg name="sce" default="-sc $(find move3d_ros)/assets/Collaboration/SCENARIOS/collaboration_test_pr2_aterm.sce" />
 
   <!-- Run motion planning and GUI -->
   <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
@@ -14,6 +15,7 @@
     <arg name="run_robot_backend" 	value="$(arg run_robot_backend)" />
     <arg name="run_human_tracking" 	value="$(arg run_human_tracking)" />
     <arg name="run_replanning" 		value="$(arg run_replanning)" />
+    <arg name="sce" 		value="$(arg sce)" />
   </include>
 
 </launch>

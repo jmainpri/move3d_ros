@@ -162,7 +162,8 @@ bool Move3DRosReplanning::processTime() const
     cout << "TIME LEFT : " << current_motion_duration_ << endl;
     cout << "TIME ALONG CURRENT TRAJ : " << time_along_current_path_ << endl;
 
-    if( motion_duration_ - current_time_ < 1e-2 ) // inferior to a hundredth of a second
+    if( motion_duration_ - current_time_ < 1e-2 )
+        // inferior to a hundredth of a second
         return false;
 
     return true;
@@ -182,7 +183,8 @@ bool Move3DRosReplanning::updateContext(bool update_robot)
     for( size_t i=0; i<int(context_.size()); i++ )
     {
         Move3D::Robot* robot = context_[i]->getRobot();
-        if( !update_robot && ( robot == robot_ ) ) // Do not update robot when update_robot is false
+        if( !update_robot && ( robot == robot_ ) )
+            // Do not update robot when update_robot is false
                 continue;
 
         cout << "UPDATE ROBOT : " << robot->getName() << endl;
@@ -307,10 +309,11 @@ void Move3DRosReplanning::execute( int iter, Move3D::Trajectory& path )
 
     Move3D::confPtr_t q;
 
-    int nb_configs = time_step_ / global_discretization_; // global_discretization_ must be a multiple of time step
+    int nb_configs = time_step_ / global_discretization_;
+    // global_discretization_ must be a multiple of time step
     double t = 0;
 
-//    cout << "path time length : " << path_.getTimeLength() << endl;
+//    cout << "path time length : " << path_.getDuration() << endl;
 //    cout << "path number of waypoints : " << path_.getNbOfViaPoints() << endl;
 //    cout << "nb_configs : " << nb_configs << endl;
 
@@ -396,7 +399,7 @@ void Move3DRosReplanning::execute( int iter, Move3D::Trajectory& path )
     cout << "End execute" << endl;
 }
 
-double Move3DRosReplanning::checkVelocityConstraints( Move3D::Trajectory& traj)
+double Move3DRosReplanning::checkVelocityConstraints( Move3D::Trajectory& traj )
 {
 //      p3d_set_dof_velocity_max      1.5 # 0.522 # max  2.088
 //      p3d_set_dof_velocity_max      1.52 # 0.522  # max 2.082
@@ -427,7 +430,7 @@ double Move3DRosReplanning::checkVelocityConstraints( Move3D::Trajectory& traj)
     Move3D::Trajectory executed_trajectory_constant_time(robot_);
 
     double dt_approx = 0.10; // 20Hz
-    double duration = traj.getTimeLength();
+    double duration = traj.getDuration();
     int nb_config   = duration / dt_approx;
     double dt       = duration / (nb_config-1);
 
@@ -492,8 +495,8 @@ void Move3DRosReplanning::saveExecutedTraj(int ith) const
 {
     double dt_approx = 0.10; // 20Hz
 
-    int nb_config = executed_trajectory_.getTimeLength() / dt_approx;
-    double dt = executed_trajectory_.getTimeLength() / (nb_config-1);
+    int nb_config = executed_trajectory_.getDuration() / dt_approx;
+    double dt = executed_trajectory_.getDuration() / (nb_config-1);
 
     Move3D::Trajectory executed_trajectory_constant_time(robot_);
     executed_trajectory_constant_time.setUseTimeParameter(true);
@@ -509,7 +512,8 @@ void Move3DRosReplanning::saveExecutedTraj(int ith) const
     std::ostringstream ss;
     ss << std::setfill('0') << std::setw(4) << ith;
 
-    std::string traj_name = ros::package::getPath("move3d_ros") + "/data/trajs/pr2/traj_" + ss.str() + ".traj";
+    std::string traj_name = ros::package::getPath("move3d_ros") +
+            "/data/trajs/pr2/traj_" + ss.str() + ".traj";
     cout << "save executed_trajectory_" << traj_name << endl;
     executed_trajectory_constant_time.saveToFile( traj_name );
 }

@@ -38,6 +38,9 @@
 #include "qtMainInterface/mainwindow.hpp"
 #include "qtMainInterface/settings.hpp"
 
+#include "hri_costspace/HRICS_parameters.hpp"
+#include "hri_costspace/gestures/HRICS_gest_parameters.hpp"
+
 #include "API/scene.hpp"
 #include "API/project.hpp"
 #include "API/libmove3d_api.hpp"
@@ -479,6 +482,16 @@ int Main_threads::run(int argc, char** argv)
         //    app->setStyle(new QMacStyle());
     }
 
+    // GET QT PARAMETERS
+    initPlannerParameters();
+    initGestureParameters();
+    initHricsParameters();
+
+    if( move3d_studio_load_settings ) {
+        cout << "Load settings 2 " << endl;
+        loadSettings();
+    }
+
     // No argument (load a file from disc)
     if( ( argc == 1 || openFileDialog ) && (!noGui) )
     {
@@ -529,9 +542,11 @@ int Main_threads::run(int argc, char** argv)
         connect(global_plannerHandler, SIGNAL(plannerIsStopped()), this, SLOT(exit()));
         global_PlanningThread->start();
 
-        QMetaObject::invokeMethod( global_plannerHandler, "init", Qt::BlockingQueuedConnection );
+        QMetaObject::invokeMethod( global_plannerHandler, "init",
+                                   Qt::BlockingQueuedConnection );
 
-        // Creates the wrapper to the project, be carefull to initialize in the right thread
+        // Creates the wrapper to the project, be carefull to initialize in
+        // the right thread
         global_Project = new Project(new Scene(XYZ_ENV));
 
         if( move3d_studio_load_settings )
@@ -543,13 +558,17 @@ int Main_threads::run(int argc, char** argv)
         // QString script("MultiRRT");
         QString script( script_id.c_str() );
         ENV.setBool(Env::drawDisabled,true);
-        QMetaObject::invokeMethod( global_plannerHandler, "startPlanner", Qt::QueuedConnection, Q_ARG(QString, script) );
+        QMetaObject::invokeMethod( global_plannerHandler,
+                                   "startPlanner", Qt::QueuedConnection,
+                                   Q_ARG(QString, script) );
     }
     else {
         global_PlanningThread->start();
-        QMetaObject::invokeMethod(global_plannerHandler,"init",Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(global_plannerHandler,"init",
+                                  Qt::BlockingQueuedConnection);
 
-        // Creates the wrapper to the project, be carefull to initialize in the right thread
+        // Creates the wrapper to the project, be carefull to initialize in
+        // the right thread
         global_Project = new Project(new Scene(XYZ_ENV));
 
         cout << endl;
@@ -560,7 +579,9 @@ int Main_threads::run(int argc, char** argv)
         if( launch_script )
         {
             QString script( script_id.c_str() );
-            QMetaObject::invokeMethod(global_plannerHandler,"startPlanner",Qt::QueuedConnection,Q_ARG(QString, script));
+            QMetaObject::invokeMethod(global_plannerHandler,
+                                      "startPlanner",Qt::QueuedConnection,
+                                      Q_ARG(QString, script));
         }
     }
 

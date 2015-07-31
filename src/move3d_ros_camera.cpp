@@ -16,7 +16,8 @@ CameraListener::CameraListener(ros::NodeHandle nh) : nh_(nh)
     _folder = home + "/workspace/statFiles/snapshots/";
 
     cout << "start subscriber" << endl;
-    _sub = it.subscribe("camera/rgb/image_raw", 1, &CameraListener::imageConverter, this);
+    _sub = it.subscribe("camera/rgb/image_raw", 1,
+                        &CameraListener::imageConverter, this);
 
     cout << "start publisher" << endl;
     _pub = it.advertise("orkinect/kinect", 1);
@@ -36,7 +37,8 @@ CameraListener::CameraListener(const int id, ros::NodeHandle nh) : nh_(nh)
     cout << "start subscriber" << endl;
     std::stringstream s;
     s << "camera" << _id << "/rgb/image_raw";
-    _sub = it.subscribe(s.str().c_str(), 1, &CameraListener::imageConverter, this);
+    _sub = it.subscribe(s.str().c_str(), 1,
+                        &CameraListener::imageConverter, this);
 
     cout << "start publisher" << endl;
     s.str( "" );
@@ -72,8 +74,10 @@ void CameraListener::takeSnapshot(timeval time)
 bool CameraListener::pubImage(timeval time)
 {
     std::stringstream file;
-    file << _folder << _id << "_" << time.tv_sec << "_" << time.tv_usec << ".png";
 
+    file << _folder << _id << "_"
+         << time.tv_sec << "_"
+         << time.tv_usec << ".png";
 
     cv::Mat image = cv::imread( file.str() );
     if( image.empty() )

@@ -65,8 +65,12 @@ using std::endl;
 Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
     QWidget(parent)
 {
-    connect(this,  SIGNAL(selectedPlanner(QString)), global_plannerHandler, SLOT(startPlanner(QString)));
-    connect(this,  SIGNAL(drawAllWinActive()),global_w, SLOT(drawAllWinActive()), Qt::QueuedConnection);
+    connect(this,
+            SIGNAL(selectedPlanner(QString)), global_plannerHandler,
+            SLOT(startPlanner(QString)));
+    connect(this,
+            SIGNAL(drawAllWinActive()),global_w,
+            SLOT(drawAllWinActive()), Qt::QueuedConnection);
 
     // Set robot structure to 0
     robot_ = Move3D::global_Project->getActiveScene()->getRobotByNameContaining("ROBOT");
@@ -153,9 +157,10 @@ Move3D::confPtr_t Move3DRosRobot::get_current_conf()
     return q_cur;
 }
 
-void Move3DRosRobot::GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config,
-                                 std::vector<std::string> joint_names,
-                                 std::vector<int> dof_ids)
+void Move3DRosRobot::GetJointState(
+        pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr joint_config,
+        std::vector<std::string> joint_names,
+        std::vector<int> dof_ids)
 {
     // cout << __PRETTY_FUNCTION__ << endl;
 
@@ -248,7 +253,8 @@ void Move3DRosRobot::loadMotions()
     // std::string folder = ros::package::getPath("move3d_ros") + "/../move3d-launch/launch_files";
     // loadMotions( folder );
 
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosRobot::loadMotions, this, folder ) );
+    global_plannerHandler->setExternalFunction(
+                boost::bind( &Move3DRosRobot::loadMotions, this, folder ) );
     emit(selectedPlanner(QString("BoostFunction")));
 }
 
@@ -283,7 +289,9 @@ void Move3DRosRobot::loadMotions(std::string folder)
 
 void Move3DRosRobot::executeLoadedMotions()
 {
-    global_plannerHandler->setExternalFunction( boost::bind( &Move3DRosRobot::executeLoadedMotionsThread, this ) );
+    global_plannerHandler->setExternalFunction(
+                boost::bind( &Move3DRosRobot::executeLoadedMotionsThread,
+                             this ) );
     emit(selectedPlanner(QString("BoostFunction")));
 }
 
@@ -321,7 +329,8 @@ void Move3DRosRobot::executeLoadedMotionsThread()
     }
 }
 
-void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait)
+void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj,
+                                             bool wait)
 {
     cout << " **************************************"<< endl;
     cout << __PRETTY_FUNCTION__ << endl;
@@ -341,7 +350,7 @@ void Move3DRosRobot::executeMove3DTrajectory(const Move3D::Trajectory& traj, boo
 
     // Start trajectory
     double t = 0.0;
-    double time_length = traj.getTimeLength();
+    double time_length = traj.getDuration();
     double dt = .100; // 100 ms (10 Hz)
 
     std::vector<double> config(active_dof_ids_.size());
