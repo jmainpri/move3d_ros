@@ -355,6 +355,7 @@ add_library(${PROJECT_NAME} src/move3d_ros_gui.cpp
                             src/move3d_ros_replanning.cpp
                             src/move3d_ros_robot.cpp
                             src/move3d_ros_camera.cpp
+                            src/move3d_ros_robot_split.cpp
                             ${Move3DGUI_QT_MOC} ${Move3DGUI_QT_UI_HEADERS} ${INC_ALL})
 
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

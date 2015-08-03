@@ -90,6 +90,8 @@ private:
     int draw_rate_;
     bool draw_human_update_;
     bool draw_robot_update_;
+    std::string robot_split_file_;
+    std::string robot_split_save_;
 
     bool run_human_backend_;
     bool run_robot_backend_;

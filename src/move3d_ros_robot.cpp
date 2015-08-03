@@ -94,7 +94,6 @@ Move3DRosRobot::Move3DRosRobot(QWidget *parent) :
 
 Move3DRosRobot::~Move3DRosRobot()
 {
-
 }
 
 void Move3DRosRobot::initPr2()
@@ -230,7 +229,9 @@ void Move3DRosRobot::GetJointState(
 
     if( update_robot_ )
     {
-        robot_->setAndUpdate(*q_cur_); // This might called concurently for right and left arm (which is ok but not checked)
+        // This might called concurently for right and left arm
+        // (which is ok but not checked)
+        robot_->setAndUpdate(*q_cur_);
 
         // OPENGL DRAW
         if( (++joint_state_received_) % draw_rate_ == 0 ) // 0 modulo k = 0
@@ -238,6 +239,10 @@ void Move3DRosRobot::GetJointState(
             emit(drawAllWinActive());
             joint_state_received_ = 0;
         }
+    }
+
+    if( spliter_.split_in_trajectories() ){
+        spliter_.storeConfiguration( q_cur_, joint_config->header.stamp.toSec() );
     }
 
     // Reset watchdog timer
@@ -469,6 +474,27 @@ void Move3DRosRobot::executeElementaryMotion( Move3D::confPtr_t q_target )
     ROS_INFO("robot at config");
 }
 
+void Move3DRosRobot::setSpliter( std::string splits_filename,
+                                 std::string trajectories_folder )
+{
+    if( splits_filename != "" )
+    {
+        if( !spliter_.loadSplits( splits_filename ) )
+        {
+            ROS_ERROR("Could not get split file at : %s",
+                      splits_filename.c_str());
+        }
+        else {
+            ROS_INFO("Set spliter from file at : %s and save at : %s",
+                      splits_filename.c_str(),
+                     trajectories_folder.c_str());
+            spliter_.set_trajectories_folder( trajectories_folder );
+            spliter_.set_robot( robot_ );
+        }
+    }
+}
+
+
 void Move3DRosRobot::setActiveArm(arm_t arm)
 {
     // SET THE ACTIVE ARM
@@ -513,11 +539,21 @@ bool Move3DRosRobot::run_pr2_backend(ros::NodeHandle* nh, bool start_backend)
     {
 
         // Setup trajectory controller interface
-        right_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/r_arm_controller/joint_trajectory_action"), true));
+        right_arm_client_ =
+                pr2_arm_client_ptr(
+                    new pr2_arm_client_t(
+                        std::string("/r_arm_controller/joint_trajectory_action"),
+                        true));
+
         ROS_INFO("Waiting for right arm controllers to come up...");
         right_arm_client_->waitForServer();
 
-        left_arm_client_ = MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> >(new actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction>(std::string("/l_arm_controller/joint_trajectory_action"), true));
+        left_arm_client_ =
+                pr2_arm_client_ptr(
+                    new pr2_arm_client_t(
+                        std::string("/l_arm_controller/joint_trajectory_action"),
+                        true));
+
         ROS_INFO("Waiting for left arm controllers to come up...");
         left_arm_client_->waitForServer();
 

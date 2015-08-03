@@ -1,12 +1,18 @@
 <launch>
 
   <arg name="output" default="screen"/>
+  <arg name="run_human_tracking" default="true" />
+  <arg name="robot_split_file" default="" />
+  <arg name="robot_split_save" default="" />
+  <arg name="sce" default="-sc $(find move3d_ros)/assets/Collaboration/SCENARIOS/collaboration_test_pr2_aterm.sce" />
+  <arg name="p3d" default="-f $(find move3d_ros)/assets/Collaboration/HumanAndRobotTableMocap.p3d" />
+  <arg name="guiparams" default="-setgui -not_rel_home -params $(find move3d_ros)/guiparams/pr2_collaboration_aterm" />
+    
+
   <arg name="draw_human_update" value="true" />
   <arg name="draw_robot_update" value="true" />
   <arg name="run_robot_backend" value="true" />
-  <arg name="run_human_tracking" default="true" />
   <arg name="run_replanning" value="false" />
-  <arg name="sce" default="-sc $(find move3d_ros)/assets/Collaboration/SCENARIOS/collaboration_test_pr2_aterm.sce" />
 
   <!-- Run motion planning and GUI -->
   <include file="$(find move3d_ros)/launch/move3d_pr2_collaboration.launch">
@@ -15,7 +21,11 @@
     <arg name="run_robot_backend" 	value="$(arg run_robot_backend)" />
     <arg name="run_human_tracking" 	value="$(arg run_human_tracking)" />
     <arg name="run_replanning" 		value="$(arg run_replanning)" />
-    <arg name="sce" 		value="$(arg sce)" />
+    <arg name="file" 		        value="$(arg p3d)" />
+    <arg name="sce" 		        value="$(arg sce)" />
+    <arg name="guiparams" 		    value="$(arg guiparams)" />
+    <arg name="robot_split_file" value="$(arg robot_split_file)" />
+    <arg name="robot_split_save" value="$(arg robot_split_save)" />
   </include>
 
 </launch>

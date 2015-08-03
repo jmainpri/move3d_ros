@@ -30,6 +30,7 @@
 #include "ui_move3d_ros_gui.h"
 
 #include "move3d_ros_human.hpp"
+#include "move3d_ros_robot_split.hpp"
 
 #include <std_msgs/String.h>
 #include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
@@ -86,6 +87,7 @@ Move3DRosGui::Move3DRosGui(QWidget *parent) :
     draw_rate_ = 10; // draws only the 10th time
     draw_human_update_ = false;
     draw_robot_update_ = false; // updates from sensor reading
+    robot_split_file_ = "";
 }
 
 Move3DRosGui::~Move3DRosGui()
@@ -250,6 +252,7 @@ void Move3DRosGui::runPr2Backend()
     cout << __PRETTY_FUNCTION__ << endl;
     robot_backend_->run_pr2_backend( nh_, false );
     robot_backend_->setUpdate( draw_robot_update_ );
+    robot_backend_->setSpliter( robot_split_file_, robot_split_save_ );
 }
 
 void Move3DRosGui::startNode()
@@ -265,6 +268,8 @@ void Move3DRosGui::startNode()
     nhp.param(std::string("run_replanning"),     run_replanning_,       bool(true));
     nhp.param(std::string("draw_human_update"),  draw_human_update_,    bool(false));
     nhp.param(std::string("draw_robot_update"),  draw_robot_update_,    bool(false));
+    nhp.param(std::string("robot_split_file"),   robot_split_file_,     std::string(""));
+    nhp.param(std::string("robot_split_save"),   robot_split_save_,     std::string(""));
 
     // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
     // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
@@ -303,6 +308,8 @@ void Move3DRosGui::startNode()
         // Spin
         spin_rate.sleep();
     }
+
+    cout << "end spinning node GUI" << endl;
 }
 
 void Move3DRosGui::start()

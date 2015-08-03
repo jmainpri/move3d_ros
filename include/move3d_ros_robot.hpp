@@ -35,6 +35,8 @@
 #include <actionlib/client/simple_action_client.h>
 #include <ros/ros.h>
 
+#include "move3d_ros_robot_split.hpp"
+
 #include "API/Device/robot.hpp"
 
 class Move3DRosRobot : public QWidget
@@ -58,6 +60,7 @@ public:
     void executeLoadedMotionsThread();
     void loadMotions(std::string folder);
     void setActiveArm(arm_t arm);
+    void setSpliter( std::string filename, std::string trajectories_folder );
 
 
     void loadMotions();
@@ -69,6 +72,15 @@ public:
     Move3D::confPtr_t get_init_conf() { return q_init_; }
 
     bool is_refreshed() { return is_refreshed_; }
+
+    typedef actionlib::SimpleActionClient<
+    pr2_controllers_msgs::JointTrajectoryAction> pr2_arm_client_t;
+
+    typedef MOVE3D_PTR_NAMESPACE::shared_ptr<pr2_arm_client_t>
+    pr2_arm_client_ptr;
+
+    typedef pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr
+    pr2_joint_state_const_ptr;
 
 signals:
 
@@ -103,16 +115,19 @@ private:
     bool update_robot_;
     std::vector<Move3D::Trajectory> move3d_trajs_;
 
+    Move3DRosRobotSplit spliter_;
+
     ros::Subscriber sub_r_;
     ros::Subscriber sub_l_;
 
-    void GetJointState(pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr arm_config,
+    void GetJointState(
+                       pr2_joint_state_const_ptr arm_config,
                        std::vector<std::string> joint_names,
                        std::vector<int> dof_ids);
 
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > right_arm_client_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > left_arm_client_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<actionlib::SimpleActionClient<pr2_controllers_msgs::JointTrajectoryAction> > active_arm_client_;
+    pr2_arm_client_ptr right_arm_client_;
+    pr2_arm_client_ptr left_arm_client_;
+    pr2_arm_client_ptr active_arm_client_;
 
     ros::NodeHandle* nh_;
 };

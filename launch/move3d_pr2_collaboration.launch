@@ -15,6 +15,8 @@
   <arg name="run_human_tracking" default="true" />
   <arg name="run_robot_backend" default="true" />
   <arg name="run_replanning" default="true" />
+  <arg name="robot_split_file" default="" />
+  <arg name="robot_split_save" default="" />
 
   <!-- If set to -startnode will update on start -->
   <arg name="start_node" default="-startnode" />
@@ -25,13 +27,17 @@
 
   <!-- Start the left arm controller -->
   <!-- Allways put the node arguments at the end -->
-  <node pkg="move3d_ros" type="move3d_ros_node" name="move3d_pr2" output="$(arg output)" args="$(arg file) $(arg guiparams) $(arg sce) $(arg start_node)">
+  <node pkg="move3d_ros" type="move3d_ros_node" 
+            name="move3d_pr2" output="$(arg output)" 
+            args="$(arg file) $(arg guiparams) $(arg sce) $(arg start_node)">
 
     <param name="draw_human_update" value="$(arg draw_human_update)" />
     <param name="draw_robot_update" value="$(arg draw_robot_update)" />
     <param name="run_human_tracking" value="$(arg run_human_tracking)" />
     <param name="run_robot_backend" value="$(arg run_robot_backend)" />
     <param name="run_replanning" value="$(arg run_replanning)" />
+    <param name="robot_split_file" value="$(arg robot_split_file)" />
+    <param name="robot_split_save" value="$(arg robot_split_save)" />
 
   </node>
 
