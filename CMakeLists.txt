@@ -338,7 +338,10 @@ ENDIF()
 ## Your package locations should be listed before other locations
 
 include_directories(include)
-include_directories($ENV{HOME}/catkin_ws/build/move3d_ros) # TODO FIX remove
+# Add the build directory for Qt-Moc linking
+include_directories(${CMAKE_SOURCE_DIR}/../build/move3d_ros) # TODO FIX remove
+
+message(${CMAKE_SOURCE_DIR})
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
