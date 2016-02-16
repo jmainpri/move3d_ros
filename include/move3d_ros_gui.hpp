@@ -42,66 +42,66 @@ namespace Ui {
 class Move3DRosGui;
 }
 
-class Move3DRosGui : public QWidget
-{
-    Q_OBJECT
-    
-public:
-    enum arm_t {left, right} arm_;
-    enum module_state_t {online, offline};
+class Move3DRosGui : public QWidget {
+  Q_OBJECT
 
-    explicit Move3DRosGui(QWidget *parent = 0);
-    ~Move3DRosGui();
+ public:
+  enum arm_t { left, right } arm_;
+  enum module_state_t { online, offline };
 
-    void initPr2();
+  explicit Move3DRosGui(QWidget* parent = 0);
+  ~Move3DRosGui();
 
-    void runPr2Backend();
-    void runHumanTracking();
+  void initPr2();
 
+  void runPr2Backend();
+  void runHumanTracking();
 
-    void startNode();
+  void startNode();
 
-    std::vector<Move3D::confPtr_t> getContext();
-    bool sendTrajectory(const Move3D::Trajectory& trajectory, double time, bool wait );
+  std::vector<Move3D::confPtr_t> getContext();
+  bool sendTrajectory(const Move3D::Trajectory& trajectory,
+                      double time,
+                      bool wait);
 
+  void setSplitter();
 
-public slots:
+ public slots:
 
-    void runReplanning();
-    void start();
-    void setState(module_state_t state);
-    void loadMotions();
-    void executeLoadedMotions();
-    bool gotoInit();
-
+  void runReplanning();
+  void start();
+  void setState(module_state_t state);
+  void loadMotions();
+  void executeLoadedMotions();
+  bool gotoInit();
 
 signals:
 
-    void selectedPlanner(QString);
-    void drawAllWinActive();
-    
+  void selectedPlanner(QString);
+  void drawAllWinActive();
 
-private:
+ private:
+  Ui::Move3DRosGui* ui_;
 
-    Ui::Move3DRosGui *ui_;
+  int spin_rate_;
 
-    int spin_rate_;
+  int draw_rate_;
+  bool draw_human_update_;
+  bool draw_robot_update_;
+  std::string robot_split_file_;
+  std::string robot_split_save_;
 
-    int draw_rate_;
-    bool draw_human_update_;
-    bool draw_robot_update_;
-    std::string robot_split_file_;
-    std::string robot_split_save_;
+  bool run_human_backend_;
+  bool run_robot_backend_;
+  bool run_replanning_;
 
-    bool run_human_backend_;
-    bool run_robot_backend_;
-    bool run_replanning_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobotSplit> splitter_;
 
-    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot> robot_backend_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman> human_joint_state_;
-    MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosReplanning> replanning_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobot> robot_backend_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosHuman> human_joint_state_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosReplanning> replanning_;
 
-    ros::NodeHandle* nh_;
+  ros::NodeHandle* nh_;
 };
 
-#endif // MOVE3D_ROS_HPP
+#endif  // MOVE3D_ROS_HPP

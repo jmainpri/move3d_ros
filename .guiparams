@@ -1,0 +1,13 @@
+[GuiParam]
+boolParameter\tete=false
+intParameter\mainwin_x=3178
+intParameter\mainwin_y=161
+intParameter\mainwin_w=1786
+intParameter\mainwin_h=936
+intParameter\tab_index_main=5
+intParameter\tab_index_cost=-1
+doubleParameter\toto=10
+stringParameter\titi=titi
+splitterSizes=@ByteArray(\0\0\0\xff\0\0\0\0\0\0\0\x2\0\0\x3\xf6\0\0\v\x1\x1\0\0\0\x6\x1\0\0\0\x1)
+mainWindowGeometry=@ByteArray(\x1\xd9\xd0\xcb\0\x1\0\0\0\0\f`\0\0\0{\0\0\x13m\0\0\x4R\0\0\fj\0\0\0\xa1\0\0\x13\x63\0\0\x4H\0\0\0\x1\0\0)
+mainWindowState=@ByteArray(\0\0\0\xff\0\0\0\0\xfd\0\0\0\0\0\0\x6\xfa\0\0\x3\x92\0\0\0\x4\0\0\0\x4\0\0\0\b\0\0\0\b\xfc\0\0\0\0)

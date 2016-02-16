@@ -39,97 +39,94 @@
 
 #include "API/Device/robot.hpp"
 
-class Move3DRosRobot : public QWidget
-{
-    Q_OBJECT
-    
-public:
+class Move3DRosRobot : public QWidget {
+  Q_OBJECT
 
-    enum arm_t {left, right} arm_;
-    enum module_state_t {online, offline};
+ public:
+  enum arm_t { left, right } arm_;
+  enum module_state_t { online, offline };
 
-    explicit Move3DRosRobot(QWidget *parent = 0);
-    ~Move3DRosRobot();
+  explicit Move3DRosRobot(QWidget* parent = 0);
+  ~Move3DRosRobot();
 
-    void initPr2();
-    void setUpdate(bool update) { update_robot_= update; }
-    bool run_pr2_backend(ros::NodeHandle* nh, bool start_backend);
+  void initPr2();
+  void setUpdate(bool update) { update_robot_ = update; }
+  bool run_pr2_backend(ros::NodeHandle* nh, bool start_backend);
 
-    void executeElementaryMotion(Move3D::confPtr_t q_target);
-    void executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait);
-    void executeLoadedMotionsThread();
-    void loadMotions(std::string folder);
-    void setActiveArm(arm_t arm);
-    void setSpliter( std::string filename, std::string trajectories_folder );
+  void executeElementaryMotion(Move3D::confPtr_t q_target);
+  void executeMove3DTrajectory(const Move3D::Trajectory& traj, bool wait);
+  void executeLoadedMotionsThread();
+  void loadMotions(std::string folder);
+  void setActiveArm(arm_t arm);
 
+  void setSplitter(
+      MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobotSplit> splitter) {
+    splitter_ = splitter;
+  }
 
-    void loadMotions();
-    void executeLoadedMotions();
+  void loadMotions();
+  void executeLoadedMotions();
 
-    Move3D::Robot* getRobot() { return robot_; }
+  Move3D::Robot* robot() { return robot_; }
 
-    Move3D::confPtr_t get_current_conf();
-    Move3D::confPtr_t get_init_conf() { return q_init_; }
+  Move3D::confPtr_t get_current_conf();
+  Move3D::confPtr_t get_init_conf() { return q_init_; }
 
-    bool is_refreshed() { return is_refreshed_; }
+  bool is_refreshed() { return is_refreshed_; }
 
-    typedef actionlib::SimpleActionClient<
-    pr2_controllers_msgs::JointTrajectoryAction> pr2_arm_client_t;
+  typedef actionlib::SimpleActionClient<
+      pr2_controllers_msgs::JointTrajectoryAction> pr2_arm_client_t;
 
-    typedef MOVE3D_PTR_NAMESPACE::shared_ptr<pr2_arm_client_t>
-    pr2_arm_client_ptr;
+  typedef MOVE3D_PTR_NAMESPACE::shared_ptr<pr2_arm_client_t> pr2_arm_client_ptr;
 
-    typedef pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr
-    pr2_joint_state_const_ptr;
+  typedef pr2_controllers_msgs::JointTrajectoryControllerState::ConstPtr
+      pr2_joint_state_const_ptr;
 
 signals:
 
-    void selectedPlanner(QString);
-    void drawAllWinActive();
-    
+  void selectedPlanner(QString);
+  void drawAllWinActive();
 
-private:
+ private:
+  int joint_state_rate_;
+  int joint_state_received_;
+  int draw_rate_;
 
-    int joint_state_rate_;
-    int joint_state_received_;
-    int draw_rate_;
+  std::string active_state_topic_name_;
+  std::string right_arm_topic_name_;
+  std::string left_arm_topic_name_;
 
-    std::string active_state_topic_name_;
-    std::string right_arm_topic_name_;
-    std::string left_arm_topic_name_;
+  std::vector<std::string> right_arm_joint_names_;
+  std::vector<std::string> left_arm_joint_names_;
+  std::vector<std::string> active_joint_names_;
 
-    std::vector<std::string> right_arm_joint_names_;
-    std::vector<std::string> left_arm_joint_names_;
-    std::vector<std::string> active_joint_names_;
+  std::vector<int> right_arm_dof_ids_;
+  std::vector<int> left_arm_dof_ids_;
+  std::vector<int> active_dof_ids_;
 
-    std::vector<int> right_arm_dof_ids_;
-    std::vector<int> left_arm_dof_ids_;
-    std::vector<int> active_dof_ids_;
+  bool is_refreshed_;
+  boost::mutex io_mutex_;
 
-    bool is_refreshed_;
-    boost::mutex io_mutex_;
+  Move3D::Robot* robot_;
+  Move3D::confPtr_t q_cur_;
+  Move3D::confPtr_t q_init_;
+  bool update_robot_;
+  std::vector<Move3D::Trajectory> move3d_trajs_;
 
-    Move3D::Robot* robot_;
-    Move3D::confPtr_t q_cur_;
-    Move3D::confPtr_t q_init_;
-    bool update_robot_;
-    std::vector<Move3D::Trajectory> move3d_trajs_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobotSplit> splitter_;
 
-    Move3DRosRobotSplit spliter_;
+  ros::Subscriber sub_r_;
+  ros::Subscriber sub_l_;
 
-    ros::Subscriber sub_r_;
-    ros::Subscriber sub_l_;
+  void GetJointState(pr2_joint_state_const_ptr arm_config,
+                     std::vector<std::string> joint_names,
+                     std::vector<int> dof_ids);
 
-    void GetJointState(
-                       pr2_joint_state_const_ptr arm_config,
-                       std::vector<std::string> joint_names,
-                       std::vector<int> dof_ids);
+  pr2_arm_client_ptr right_arm_client_;
+  pr2_arm_client_ptr left_arm_client_;
+  pr2_arm_client_ptr active_arm_client_;
 
-    pr2_arm_client_ptr right_arm_client_;
-    pr2_arm_client_ptr left_arm_client_;
-    pr2_arm_client_ptr active_arm_client_;
-
-    ros::NodeHandle* nh_;
+  ros::NodeHandle* nh_;
 };
 
-#endif // MOVE3D_ROS_ROBOT_HPP
+#endif  // MOVE3D_ROS_ROBOT_HPP

@@ -36,49 +36,56 @@
 
 #include "API/Device/robot.hpp"
 
+#include "move3d_ros_robot_split.hpp"
+
 #include <boost/thread/mutex.hpp>
 
-class Move3DRosHuman : public QObject
-{
-    Q_OBJECT
-    
-public:
+class Move3DRosHuman : public QObject {
+  Q_OBJECT
 
-    Move3DRosHuman(QWidget *parent = 0);
-    ~Move3DRosHuman();
+ public:
+  Move3DRosHuman(QWidget* parent = 0);
+  ~Move3DRosHuman();
 
-    bool initHuman();
-    void setUpdate(bool update) { update_robot_= update; }
-    bool subscribe_to_joint_angles(ros::NodeHandle* nh);
-    Move3D::confPtr_t get_current_conf();
+  bool initHuman();
+  void setUpdate(bool update) { update_robot_ = update; }
+  bool subscribe_to_joint_angles(ros::NodeHandle* nh);
+  Move3D::confPtr_t get_current_conf();
 
-    bool is_refreshed() { return is_refreshed_; }
+  bool is_refreshed() { return is_refreshed_; }
 
+  void setSplitter(
+      MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobotSplit> splitter) {
+    splitter_ = splitter;
+  }
+
+  Move3D::Robot* human() { return robot_; }
 
 signals:
 
-    void drawAllWinActive();
+  void drawAllWinActive();
 
-private:
+ private:
+  Move3D::Robot* robot_;
+  Move3D::confPtr_t q_cur_;
+  std::vector<std::string> joint_names_;
+  std::map<std::string, int> joint_map_;
+  int draw_rate_;
+  bool update_robot_;
+  int joint_state_received_;
 
-    Move3D::Robot* robot_;
-    Move3D::confPtr_t q_cur_;
-    std::vector<std::string> joint_names_;
-    std::map<std::string,int> joint_map_;
-    int draw_rate_;
-    bool update_robot_;
-    int joint_state_received_;
+  void GetJointState(sensor_msgs::JointState::ConstPtr arm_config);
+  void GetMarkers(lightweight_vicon_bridge::MocapMarkerArray::ConstPtr markers);
 
-    void GetJointState(sensor_msgs::JointState::ConstPtr arm_config );
-    void GetMarkers( lightweight_vicon_bridge::MocapMarkerArray::ConstPtr markers );
+  std::string topic_name_;
+  boost::mutex io_mutex_;
+  bool is_refreshed_;
 
-    std::string topic_name_;
-    boost::mutex io_mutex_;
-    bool is_refreshed_;
+  ros::Subscriber sub_angles_;
+  ros::Subscriber sub_markers_;
+  ros::NodeHandle* nh_;
 
-    ros::Subscriber sub_angles_;
-    ros::Subscriber sub_markers_;
-    ros::NodeHandle* nh_;
+  MOVE3D_PTR_NAMESPACE::shared_ptr<Move3DRosRobotSplit> splitter_;
 };
 
-#endif // MOVE3D_ROS_HUMAN_HPP
+#endif  // MOVE3D_ROS_HUMAN_HPP
